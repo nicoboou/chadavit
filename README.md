@@ -77,6 +77,8 @@ POETRY_ENV=$(poetry env info --path)    # Get the path of the environment
 source "$POETRY_ENV/bin/activate"       # Activate the environment
 ```
 
+For the pretrained weights, stay tuned !
+
 ## 🗣️ Citation
 
 If you find this repository useful for your research, please cite the following paper as such:
