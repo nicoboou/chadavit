@@ -1,0 +1,9 @@
+._DS_Store
+
+/arch
+/build
+/test
+
+/data
+
+/.vscode
