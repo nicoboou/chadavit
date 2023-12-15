@@ -11,3 +11,5 @@ private.yaml
 
 slurm/
 scripts/
+
+weights/
