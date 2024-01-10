@@ -13,3 +13,8 @@ slurm/
 scripts/
 
 weights/
+
+*.pyc
+*.lock
+
+__pycache__/
