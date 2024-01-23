@@ -11,10 +11,13 @@ private.yaml
 
 slurm/
 scripts/
-
 weights/
+logs/
+wandb/
+trained_models/
 
 *.pyc
 *.lock
+*.log
 
 __pycache__/

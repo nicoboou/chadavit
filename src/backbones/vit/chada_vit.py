@@ -136,7 +136,7 @@ class TokenLearner(nn.Module):
 class ChAdaViT(nn.Module):
     """ Channel Adaptive Vision Transformer"""
     def __init__(self, img_size=[224], in_chans=1, embed_dim=192, patch_size=16, num_classes=0, depth=12,
-                 num_heads=12, drop_rate=0., drop_path_rate=0., norm_layer=nn.LayerNorm, **kwargs):
+                 num_heads=12, drop_rate=0., drop_path_rate=0., norm_layer=nn.LayerNorm, return_all_tokens=True, **kwargs):
         super().__init__()
 
         # Embeddings dimension
@@ -164,6 +164,9 @@ class ChAdaViT(nn.Module):
 
         # Classifier head
         self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+
+        # Return only the [CLS] token or all tokens
+        self.return_all_tokens = return_all_tokens
 
         trunc_normal_(self.pos_embed, std=.02)
         trunc_normal_(self.cls_token, std=.02)
@@ -276,7 +279,14 @@ class ChAdaViT(nn.Module):
 
         # Normalize
         x = self.norm(x)
-        return x[:, 0]     # return [CLS] token
+
+        if self.return_all_tokens:
+            # Create a mask to select non-masked tokens (excluding CLS token)
+            non_masked_tokens_mask = ~channel_mask[:, 1:]
+            non_masked_tokens = x[:, 1:][non_masked_tokens_mask]
+            return non_masked_tokens  # return non-masked tokens (excluding CLS token)
+        else:
+            return x[:, 0]  # return only the [CLS] token
 
     def channel_token_sanity_check(self, x):
         """
@@ -323,5 +333,6 @@ class ChAdaViT(nn.Module):
 def chada_vit(**kwargs):
     patch_size = kwargs['patch_size']
     embed_dim = kwargs['embed_dim']
-    model = ChAdaViT(patch_size=patch_size, embed_dim=embed_dim, depth=12, num_heads=12, norm_layer=partial(nn.LayerNorm, eps=1e-6))
+    return_all_tokens = kwargs['return_all_tokens']
+    model = ChAdaViT(patch_size=patch_size, embed_dim=embed_dim, depth=12, num_heads=12, norm_layer=partial(nn.LayerNorm, eps=1e-6), return_all_tokens=return_all_tokens)
     return model

@@ -246,6 +246,7 @@ class OfflineUMAP:
         plot_path: str,
         channels_strategy: str = None,
         mixed_channels: bool = False,
+        return_all_tokens: bool = False,
     ):
         """Produces a UMAP visualization by forwarding all data of the
         first validation dataloader through the model.
@@ -289,6 +290,15 @@ class OfflineUMAP:
                     feats = torch.stack(chunks, dim=0)
                     # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
                     feats = feats.flatten(start_dim=1)
+                
+                elif return_all_tokens and not mixed_channels:
+                    # Concatenate feature embeddings per image
+                    chunks = feats.view(sum(list_num_channels[0]), -1, feats.shape[-1])
+                    chunks = torch.split(chunks, list_num_channels[0], dim=0)
+                    # Concatenate the chunks along the batch dimension
+                    feats = torch.stack(chunks, dim=0)
+                    # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
+                    feats = feats.flatten(start_dim=1)   
 
                 backbone_features.append(feats.detach().cpu())
                 labels.append(targets.detach().cpu())

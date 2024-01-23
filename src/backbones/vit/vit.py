@@ -42,6 +42,7 @@ def vit_tiny(patch_size=16, **kwargs):
         patch_size=patch_size, embed_dim=192, depth=12, num_heads=3, num_classes=0, dynamic_img_size=True, **kwargs
     )
     pretrained = model_kwargs.pop("pretrained", False)
+    del model_kwargs["return_all_tokens"]
     model = _create_vision_transformer(
         "vit_tiny_patch16_224", pretrained=pretrained, **model_kwargs
     )

@@ -192,6 +192,9 @@ class BaseMethod(pl.LightningModule):
         self.mixed_channels = cfg.mixed_channels
         self.list_num_channels = []
 
+        # return all tokens
+        self.return_all_tokens = cfg.backbone.kwargs.return_all_tokens
+
         # modify features dim according to channels strategy
         if cfg.channels_strategy == "one_channel" and not cfg.mixed_channels:
             # we need to modify the classifier to accept the concatenated X channels as 1 big features vector
@@ -488,6 +491,15 @@ class BaseMethod(pl.LightningModule):
             feats = torch.stack(chunks, dim=0)
             # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
             feats = feats.flatten(start_dim=1)
+        
+        elif self.return_all_tokens and not self.mixed_channels:
+                # Concatenate feature embeddings per image
+                chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
+                chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
+                # Concatenate the chunks along the batch dimension
+                feats = torch.stack(chunks, dim=0)
+                # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
+                feats = feats.flatten(start_dim=1)
 
         logits = self.classifier(feats.detach()) # feats = (batch_size, img_channels * backbone_output_dim)
         return {"logits": logits, "feats": feats}
@@ -517,6 +529,15 @@ class BaseMethod(pl.LightningModule):
         if self.channels_strategy == "one_channel" and not self.mixed_channels:
             # Concatenate feature embeddings per image
             chunks = torch.split(feats, self.list_num_channels[index], dim=0)
+            # Concatenate the chunks along the batch dimension
+            feats = torch.stack(chunks, dim=0)
+            # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
+            feats = feats.flatten(start_dim=1)
+        
+        elif self.return_all_tokens and not self.mixed_channels:
+            # Concatenate feature embeddings per image
+            chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
+            chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
             # Concatenate the chunks along the batch dimension
             feats = torch.stack(chunks, dim=0)
             # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
@@ -812,6 +833,15 @@ class BaseMethod(pl.LightningModule):
             # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
             feats = feats.flatten(start_dim=1)
 
+        elif self.return_all_tokens and not self.mixed_channels:
+            # Concatenate feature embeddings per image
+            chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
+            chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
+            # Concatenate the chunks along the batch dimension
+            feats = torch.stack(chunks, dim=0)
+            # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
+            feats = feats.flatten(start_dim=1)
+
         return feats
 
 
@@ -940,6 +970,15 @@ class BaseMomentumMethod(BaseMethod):
         if self.channels_strategy == "one_channel" and not self.mixed_channels:
             # Concatenate feature embeddings per image
             chunks = torch.split(feats, self.list_num_channels[index], dim=0)
+            # Concatenate the chunks along the batch dimension
+            feats = torch.stack(chunks, dim=0)
+            # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
+            feats = feats.flatten(start_dim=1)
+        
+        elif self.return_all_tokens and not self.mixed_channels:
+            # Concatenate feature embeddings per image
+            chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
+            chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
             # Concatenate the chunks along the batch dimension
             feats = torch.stack(chunks, dim=0)
             # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)

@@ -68,9 +68,10 @@ def main(cfg: DictConfig):
             method_args = json.load(f)
         cfg_pretrained_model = OmegaConf.create(method_args)
 
-        # FOR MODELS TRAINED BEFORE IMPLEMENTATION OF TOKEN LEARNER LR
+        # FOR MODELS TRAINED BEFORE IMPLEMENTATION OF SPECIFIC PARAMS
         cfg_pretrained_model.optimizer.token_learner_lr = omegaconf_select(cfg, "optimizer.token_learner_lr", None)
         cfg_pretrained_model.ssl_val_loss = omegaconf_select(cfg, "ssl_val_loss", False)
+        cfg_pretrained_model.backbone.kwargs.return_all_tokens = omegaconf_select(cfg, "backbone.kwargs.return_all_tokens", False)
 
         model = METHODS[cfg.method](cfg).load_from_checkpoint(ckpt_path, strict=False, cfg=cfg_pretrained_model).backbone
         model.cuda()
@@ -95,12 +96,12 @@ def main(cfg: DictConfig):
     model = model.to(device)
 
     if cfg.data.multi_labels:
-        umap.plot_multi_labels(device=device, model=model, dataloader=train_loader, plot_path=f"{cfg.name}_train_umap.pdf", channels_strategy=cfg.channels_strategy, mixed_channels=cfg.mixed_channels)
-        umap.plot_multi_labels(device=device, model=model, dataloader=val_loader, plot_path=f"{cfg.name}_val_umap.pdf", channels_strategy=cfg.channels_strategy, mixed_channels=cfg.mixed_channels)
+        umap.plot_multi_labels(device=device, model=model, dataloader=train_loader, plot_path=f"{cfg.name}_train_umap.pdf", channels_strategy=cfg.channels_strategy, mixed_channels=cfg.mixed_channels, return_all_tokens=cfg.backbone.kwargs.return_all_tokens)
+        umap.plot_multi_labels(device=device, model=model, dataloader=val_loader, plot_path=f"{cfg.name}_val_umap.pdf", channels_strategy=cfg.channels_strategy, mixed_channels=cfg.mixed_channels, return_all_tokens=cfg.backbone.kwargs.return_all_tokens)
     
     else:
-        umap.plot(device=device, model=model, dataloader=train_loader, plot_path=f"{cfg.name}_train_umap.pdf", channels_strategy=cfg.channels_strategy, mixed_channels=cfg.mixed_channels)
-        umap.plot(device=device, model=model, dataloader=val_loader, plot_path=f"{cfg.name}_val_umap.pdf", channels_strategy=cfg.channels_strategy, mixed_channels=cfg.mixed_channels)
+        umap.plot(device=device, model=model, dataloader=train_loader, plot_path=f"{cfg.name}_train_umap.pdf", channels_strategy=cfg.channels_strategy, mixed_channels=cfg.mixed_channels, return_all_tokens=cfg.backbone.kwargs.return_all_tokens)
+        umap.plot(device=device, model=model, dataloader=val_loader, plot_path=f"{cfg.name}_val_umap.pdf", channels_strategy=cfg.channels_strategy, mixed_channels=cfg.mixed_channels, return_all_tokens=cfg.backbone.kwargs.return_all_tokens)
 
 
 if __name__ == "__main__":

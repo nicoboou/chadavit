@@ -154,8 +154,12 @@ class RegressionModel(pl.LightningModule):
 
         # channels strategy
         self.channels_strategy = cfg.channels_strategy
+        self.mixed_channels = cfg.mixed_channels
         self.list_num_channels = []
 
+        # return all tokens
+        self.return_all_tokens = cfg.backbone.kwargs.return_all_tokens
+        
         # SLURM Handling
         self.slurm_enabled = cfg.slurm.enabled
         self.wandb_enabled = cfg.wandb.enabled
@@ -318,9 +322,18 @@ class RegressionModel(pl.LightningModule):
             else:
                 feats = self.backbone(X)
 
-            if self.channels_strategy == "one_channel":
+            if self.channels_strategy == "one_channel" and not self.mixed_channels:
                 # Concatenate feature embeddings per image
                 chunks = torch.split(feats, self.list_num_channels[index], dim=0)
+                # Concatenate the chunks along the batch dimension
+                feats = torch.stack(chunks, dim=0)
+                # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
+                feats = feats.flatten(start_dim=1)
+
+            elif self.return_all_tokens and not self.mixed_channels:
+                # Concatenate feature embeddings per image
+                chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
+                chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
                 # Concatenate the chunks along the batch dimension
                 feats = torch.stack(chunks, dim=0)
                 # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
