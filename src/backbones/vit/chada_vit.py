@@ -136,14 +136,14 @@ class TokenLearner(nn.Module):
 class ChAdaViT(nn.Module):
     """ Channel Adaptive Vision Transformer"""
     def __init__(self, img_size=[224], in_chans=1, embed_dim=192, patch_size=16, num_classes=0, depth=12,
-                 num_heads=12, drop_rate=0., drop_path_rate=0., norm_layer=nn.LayerNorm, return_all_tokens=True, **kwargs):
+                 num_heads=12, drop_rate=0., drop_path_rate=0., norm_layer=nn.LayerNorm, return_all_tokens=True, max_number_channels=10, **kwargs):
         super().__init__()
 
         # Embeddings dimension
         self.num_features = self.embed_dim = embed_dim
 
         # Num of maximum channels in the batch
-        self.max_channels = 10
+        self.max_channels = max_number_channels
 
         # Tokenization module
         self.token_learner = TokenLearner(img_size=img_size[0], patch_size=patch_size, in_chans=in_chans, embed_dim=self.embed_dim)
@@ -334,5 +334,6 @@ def chada_vit(**kwargs):
     patch_size = kwargs['patch_size']
     embed_dim = kwargs['embed_dim']
     return_all_tokens = kwargs['return_all_tokens']
-    model = ChAdaViT(patch_size=patch_size, embed_dim=embed_dim, depth=12, num_heads=12, norm_layer=partial(nn.LayerNorm, eps=1e-6), return_all_tokens=return_all_tokens)
+    max_number_channels = kwargs['max_number_channels']
+    model = ChAdaViT(patch_size=patch_size, embed_dim=embed_dim, depth=12, num_heads=12, norm_layer=partial(nn.LayerNorm, eps=1e-6), return_all_tokens=return_all_tokens, max_number_channels=max_number_channels)
     return model

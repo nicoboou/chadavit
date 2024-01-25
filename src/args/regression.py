@@ -120,6 +120,9 @@ def parse_cfg(cfg: omegaconf.DictConfig):
     # Default value for channels strategy
     cfg.channels_strategy = omegaconf_select(cfg, "channels_strategy", None)
 
+    # Default value for return_all_tokens
+    cfg.backbone.kwargs.return_all_tokens = omegaconf_select(cfg, "backbone.kwargs.return_all_tokens", False)
+
     # Default value for mixed_channels
     cfg.mixed_channels = omegaconf_select(cfg, "mixed_channels", False)
 

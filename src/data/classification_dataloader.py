@@ -41,7 +41,7 @@ except ImportError:
 else:
     _h5_available = True
 
-from src.data.custom_datasets import IDRCell100K, BBBC021, BloodMNIST, BBBC048, CyclOPS, TissueMNIST, Transloc, BBBC021xBray, MTBenchReg
+from src.data.custom_datasets import IDRCell100K, BBBC021, BloodMNIST, BBBC048, CyclOPS, TissueMNIST, Transloc, BBBC021xBray, MTBenchReg, Bray
 
 class AlbumentationTransform:
     def __init__(self, transform=None):
@@ -115,6 +115,23 @@ def prepare_transforms(dataset: str) -> Tuple[nn.Module, nn.Module]:
     }
 
     idrcell100k_pipeline = {
+        "T_train": A.Compose(
+            [
+                A.augmentations.crops.transforms.RandomResizedCrop(height=224,width=224,scale=(0.08, 1.0),interpolation=cv2.INTER_CUBIC,p=1.0),
+                A.HorizontalFlip(p=0.5),
+                ToTensorV2(),
+            ]
+        ),
+        "T_val": A.Compose(
+            [
+                A.Resize(height=256, width=256),  # resize shorter
+                A.CenterCrop(height=224,width=224),  # take center crop
+                ToTensorV2(),
+            ]
+        ),
+    }
+
+    bray_pipeline = {
         "T_train": A.Compose(
             [
                 A.augmentations.crops.transforms.RandomResizedCrop(height=224,width=224,scale=(0.08, 1.0),interpolation=cv2.INTER_CUBIC,p=1.0),
@@ -281,13 +298,14 @@ def prepare_transforms(dataset: str) -> Tuple[nn.Module, nn.Module]:
         "tissuemnist": tissuemnist_pipeline,
         "transloc": transloc_pipeline,
         "bbbc021xbray": bbbc021_x_bray_pipeline,
-        "mtbenchreg": mtbenchreg_pipeline
+        "mtbenchreg": mtbenchreg_pipeline,
+        "bray": bray_pipeline,
     }
 
     assert dataset in pipelines
 
     pipeline = pipelines[dataset]
-    if dataset in ["idrcell100k", "bbbc021", "bbbc021xbray"]:
+    if dataset in ["idrcell100k", "bbbc021", "bbbc021xbray", "bray"]:
         T_train = AlbumentationTransform(transform=pipeline["T_train"])
         T_val = AlbumentationTransform(transform=pipeline["T_val"])
     else:
@@ -334,7 +352,7 @@ def prepare_datasets(
         sandbox_folder = Path(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         val_data_path = sandbox_folder / "datasets"
 
-    assert dataset in ["cifar10", "cifar100", "stl10", "imagenet", "imagenet100", "bbbc021", "idrcell100k", "bloodmnist", "bbbc048", "cyclops", "tissuemnist", "transloc", "bbbc021xbray", "mtbenchreg"]
+    assert dataset in ["cifar10", "cifar100", "stl10", "imagenet", "imagenet100", "bbbc021", "idrcell100k", "bloodmnist", "bbbc048", "cyclops", "tissuemnist", "transloc", "bbbc021xbray", "mtbenchreg", "bray"]
 
     # ----------- Natural images datasets ----------- #
     if dataset in ["cifar10", "cifar100"]:
@@ -380,6 +398,10 @@ def prepare_datasets(
     elif dataset == "idrcell100k":
         train_dataset = IDRCell100K(root_dir=train_data_path, train=True, transform=T_train, sample_ratio=sample_ratio)
         val_dataset = IDRCell100K(root_dir=val_data_path, train=False, transform=T_val, sample_ratio=sample_ratio)
+
+    elif dataset == "bray":
+        train_dataset = Bray(root_dir=train_data_path, train=True, transform=T_train, sample_ratio=sample_ratio)
+        val_dataset = Bray(root_dir=val_data_path, train=False, transform=T_val, sample_ratio=sample_ratio)
 
     # ----------- Classification datasets ----------- #
     elif dataset == "bbbc021":

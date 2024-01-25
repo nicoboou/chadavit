@@ -164,6 +164,10 @@ class BaseMethod(pl.LightningModule):
         # initialize backbone
         kwargs = self.backbone_args.copy()
 
+        # Add max_number_channels to kwargs if using multi_channels strategy
+        if cfg.channels_strategy == "multi_channels":
+            kwargs["max_number_channels"] = cfg.data.max_img_channels
+
         # load imagenet weights
         if cfg.weights_init == "imagenet-weights":
             pretrained = True
@@ -195,10 +199,16 @@ class BaseMethod(pl.LightningModule):
         # return all tokens
         self.return_all_tokens = cfg.backbone.kwargs.return_all_tokens
 
-        # modify features dim according to channels strategy
-        if cfg.channels_strategy == "one_channel" and not cfg.mixed_channels:
-            # we need to modify the classifier to accept the concatenated X channels as 1 big features vector
-            self.features_dim *= cfg.data.max_img_channels
+        # channels strategy
+        if not cfg.backbone.kwargs.return_all_tokens:
+            if cfg.channels_strategy == "one_channel":
+                # we need to modify the classifier to accept the concatenated X channels as 1 big features vector
+                features_dim *= cfg.data.img_channels
+        else:
+            if cfg.channels_strategy == "one_channel":
+                features_dim = cfg.data.img_channels * self.backbone.patch_embed.num_patches * self.backbone.embed_dim
+            elif cfg.channels_strategy == "multi_channels":
+                features_dim = cfg.data.img_channels * self.backbone.token_learner.num_patches * self.backbone.embed_dim
 
         # online linear classifier
         self.classifier: nn.Module = nn.Linear(self.features_dim, self.num_classes)
@@ -473,7 +483,7 @@ class BaseMethod(pl.LightningModule):
         Returns:
             Dict: dict of logits and features.
         """
-
+    
         if not self.no_channel_last:
             X = X.to(memory_format=torch.channels_last)
 
@@ -482,17 +492,18 @@ class BaseMethod(pl.LightningModule):
             assert isinstance(self.backbone, ChAdaViT), "Only backbone of class ChAdaViT is currently supported for multi_channels strategy."
             feats = self.backbone(X, index, self.list_num_channels)
         else:
-            feats = self.backbone(X)
+            feats = self.backbone.forward_features(X)[:,1:] if self.return_all_tokens else self.backbone(X)
+            
+        if not self.mixed_channels:
+            if not self.return_all_tokens and self.channels_strategy == "one_channel":
+                # Concatenate feature embeddings per image
+                chunks = torch.split(feats, self.list_num_channels[index], dim=0)
+                # Concatenate the chunks along the batch dimension
+                feats = torch.stack(chunks, dim=0)
+                # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
+                feats = feats.flatten(start_dim=1)
 
-        if self.channels_strategy == "one_channel" and not self.mixed_channels:
-            # Concatenate feature embeddings per image
-            chunks = torch.split(feats, self.list_num_channels[index], dim=0)
-            # Concatenate the chunks along the batch dimension
-            feats = torch.stack(chunks, dim=0)
-            # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
-            feats = feats.flatten(start_dim=1)
-        
-        elif self.return_all_tokens and not self.mixed_channels:
+            elif self.return_all_tokens:
                 # Concatenate feature embeddings per image
                 chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
                 chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
@@ -501,7 +512,7 @@ class BaseMethod(pl.LightningModule):
                 # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
                 feats = feats.flatten(start_dim=1)
 
-        logits = self.classifier(feats.detach()) # feats = (batch_size, img_channels * backbone_output_dim)
+        logits = self.classifier(feats.detach())  # feats = (batch_size, img_channels * backbone_output_dim)
         return {"logits": logits, "feats": feats}
 
     def multicrop_forward(self, X: torch.tensor, index:int) -> Dict[str, Any]:
@@ -522,26 +533,29 @@ class BaseMethod(pl.LightningModule):
             X = X.to(memory_format=torch.channels_last)
 
         if self.channels_strategy == "multi_channels":
+            # Assert that backbone is of class ChAdaViT
+            assert isinstance(self.backbone, ChAdaViT), "Only backbone of class ChAdaViT is currently supported for multi_channels strategy."
             feats = self.backbone(X, index, self.list_num_channels)
         else:
-            feats = self.backbone(X)
+            feats = self.backbone.forward_features(X)[:,1:] if self.return_all_tokens else self.backbone(X)
+            
+        if not self.mixed_channels:
+            if not self.return_all_tokens and self.channels_strategy == "one_channel":
+                # Concatenate feature embeddings per image
+                chunks = torch.split(feats, self.list_num_channels[index], dim=0)
+                # Concatenate the chunks along the batch dimension
+                feats = torch.stack(chunks, dim=0)
+                # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
+                feats = feats.flatten(start_dim=1)
 
-        if self.channels_strategy == "one_channel" and not self.mixed_channels:
-            # Concatenate feature embeddings per image
-            chunks = torch.split(feats, self.list_num_channels[index], dim=0)
-            # Concatenate the chunks along the batch dimension
-            feats = torch.stack(chunks, dim=0)
-            # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
-            feats = feats.flatten(start_dim=1)
-        
-        elif self.return_all_tokens and not self.mixed_channels:
-            # Concatenate feature embeddings per image
-            chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
-            chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
-            # Concatenate the chunks along the batch dimension
-            feats = torch.stack(chunks, dim=0)
-            # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
-            feats = feats.flatten(start_dim=1)
+            elif self.return_all_tokens:
+                # Concatenate feature embeddings per image
+                chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
+                chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
+                # Concatenate the chunks along the batch dimension
+                feats = torch.stack(chunks, dim=0)
+                # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
+                feats = feats.flatten(start_dim=1)
 
         return {"feats": feats}
 
@@ -823,24 +837,25 @@ class BaseMethod(pl.LightningModule):
             assert isinstance(self.backbone, ChAdaViT), "Only backbone of class ChAdaViT is currently supported for multi_channels strategy."
             feats = self.backbone(X, index, self.list_num_channels)
         else:
-            feats = self.backbone(X)
+            feats = self.backbone.forward_features(X)[:,1:] if self.return_all_tokens else self.backbone(X)
+            
+        if not self.mixed_channels:
+            if not self.return_all_tokens and self.channels_strategy == "one_channel":
+                # Concatenate feature embeddings per image
+                chunks = torch.split(feats, self.list_num_channels[index], dim=0)
+                # Concatenate the chunks along the batch dimension
+                feats = torch.stack(chunks, dim=0)
+                # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
+                feats = feats.flatten(start_dim=1)
 
-        if self.channels_strategy == "one_channel" and not self.mixed_channels:
-            # Concatenate feature embeddings per image
-            chunks = torch.split(feats, self.list_num_channels[index], dim=0)
-            # Concatenate the chunks along the batch dimension
-            feats = torch.stack(chunks, dim=0)
-            # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
-            feats = feats.flatten(start_dim=1)
-
-        elif self.return_all_tokens and not self.mixed_channels:
-            # Concatenate feature embeddings per image
-            chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
-            chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
-            # Concatenate the chunks along the batch dimension
-            feats = torch.stack(chunks, dim=0)
-            # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
-            feats = feats.flatten(start_dim=1)
+            elif self.return_all_tokens:
+                # Concatenate feature embeddings per image
+                chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
+                chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
+                # Concatenate the chunks along the batch dimension
+                feats = torch.stack(chunks, dim=0)
+                # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
+                feats = feats.flatten(start_dim=1)
 
         return feats
 
@@ -869,6 +884,10 @@ class BaseMomentumMethod(BaseMethod):
 
         # initialize momentum backbone
         kwargs = self.backbone_args.copy()
+
+        # Add max_number_channels to kwargs if using multi_channels strategy
+        if cfg.channels_strategy == "multi_channels":
+            kwargs["max_number_channels"] = cfg.data.max_img_channels
 
         # load imagenet weights
         if cfg.weights_init == "imagenet-weights":
@@ -963,26 +982,29 @@ class BaseMomentumMethod(BaseMethod):
             X = X.to(memory_format=torch.channels_last)
 
         if self.channels_strategy == "multi_channels":
+            # Assert that backbone is of class ChAdaViT
+            assert isinstance(self.momentum_backbone, ChAdaViT), "Only backbone of class ChAdaViT is currently supported for multi_channels strategy."
             feats = self.momentum_backbone(X, index, self.list_num_channels)
         else:
-            feats = self.momentum_backbone(X)
+            feats = self.momentum_backbone.forward_features(X)[:,1:] if self.return_all_tokens else self.momentum_backbone(X)
+            
+        if not self.mixed_channels:
+            if not self.return_all_tokens and self.channels_strategy == "one_channel":
+                # Concatenate feature embeddings per image
+                chunks = torch.split(feats, self.list_num_channels[index], dim=0)
+                # Concatenate the chunks along the batch dimension
+                feats = torch.stack(chunks, dim=0)
+                # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
+                feats = feats.flatten(start_dim=1)
 
-        if self.channels_strategy == "one_channel" and not self.mixed_channels:
-            # Concatenate feature embeddings per image
-            chunks = torch.split(feats, self.list_num_channels[index], dim=0)
-            # Concatenate the chunks along the batch dimension
-            feats = torch.stack(chunks, dim=0)
-            # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
-            feats = feats.flatten(start_dim=1)
-        
-        elif self.return_all_tokens and not self.mixed_channels:
-            # Concatenate feature embeddings per image
-            chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
-            chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
-            # Concatenate the chunks along the batch dimension
-            feats = torch.stack(chunks, dim=0)
-            # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
-            feats = feats.flatten(start_dim=1)
+            elif self.return_all_tokens:
+                # Concatenate feature embeddings per image
+                chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
+                chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
+                # Concatenate the chunks along the batch dimension
+                feats = torch.stack(chunks, dim=0)
+                # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
+                feats = feats.flatten(start_dim=1)
 
         return {"feats": feats}
 

@@ -38,7 +38,7 @@ import cv2
 
 # Local imports
 from src.data.channels_strategies import RandomDiscarder, one_channel_collate_fn
-from src.data.custom_datasets import IDRCell100K
+from src.data.custom_datasets import IDRCell100K, Bray
 from src.data.custom_transforms import CustomColorJitter
 
 try:
@@ -269,7 +269,7 @@ def build_transform_pipeline(dataset, cfg):
 
     augmentations = []
 
-    if dataset == "idrcell100k":
+    if dataset == "idrcell100k" or dataset == "bray":
         if cfg.rrc.enabled:
             augmentations.append(
                 A.augmentations.crops.transforms.RandomResizedCrop(
@@ -460,6 +460,11 @@ def prepare_datasets(
         train_dataset = dataset_with_index(IDRCell100K)(root_dir=train_data_path, train=True, transform=transform)
         if return_val_dataset:
             val_dataset = dataset_with_index(IDRCell100K)(root_dir=val_data_path, train=False, transform=transform)
+    
+    elif dataset == "bray":
+        train_dataset = dataset_with_index(Bray)(root_dir=train_data_path, train=True, transform=transform)
+        if return_val_dataset:
+            val_dataset = dataset_with_index(Bray)(root_dir=val_data_path, train=False, transform=transform)
 
     if data_fraction > 0:
         assert data_fraction < 1, "Only use data_fraction for values smaller than 1."

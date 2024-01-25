@@ -41,7 +41,8 @@ _SUPPORTED_DATASETS = [
     "bbbc048",
     "cyclops",
     "tissuemnist",
-    "mtbenchreg"
+    "mtbenchreg",
+    "bray"
 ]
 
 
@@ -68,7 +69,6 @@ def add_and_assert_dataset_cfg(cfg: omegaconf.DictConfig) -> omegaconf.DictConfi
 
     return cfg
 
-
 def add_and_assert_slurm_cfg(cfg: omegaconf.DictConfig) -> omegaconf.DictConfig:
     """Adds specific default values/checks for SLURM config.
 
@@ -87,7 +87,6 @@ def add_and_assert_slurm_cfg(cfg: omegaconf.DictConfig) -> omegaconf.DictConfig:
     cfg.slurm.gpus_type = omegaconf_select(cfg, "slurm.gpus_type", "gpu:V100")
 
     return cfg
-
 
 def add_and_assert_wandb_cfg(cfg: omegaconf.DictConfig) -> omegaconf.DictConfig:
     """Adds specific default values/checks for wandb config.
@@ -108,7 +107,6 @@ def add_and_assert_wandb_cfg(cfg: omegaconf.DictConfig) -> omegaconf.DictConfig:
 
     return cfg
 
-
 def add_and_assert_lightning_cfg(cfg: omegaconf.DictConfig) -> omegaconf.DictConfig:
     """Adds specific default values/checks for Pytorch Lightning config.
 
@@ -124,7 +122,6 @@ def add_and_assert_lightning_cfg(cfg: omegaconf.DictConfig) -> omegaconf.DictCon
     cfg.strategy = omegaconf_select(cfg, "strategy", None)
 
     return cfg
-
 
 def parse_cfg(cfg: omegaconf.DictConfig):
     """Parses feature extractor, dataset, pytorch lightning, linear eval specific and additional args.
@@ -146,6 +143,9 @@ def parse_cfg(cfg: omegaconf.DictConfig):
     # Default value for channels strategy
     cfg.channels_strategy = omegaconf_select(cfg, "channels_strategy", None)
 
+    # Default value for return_all_tokens
+    cfg.backbone.kwargs.return_all_tokens = omegaconf_select(cfg, "backbone.kwargs.return_all_tokens", False)
+    
     # Default value for mixed_channels
     cfg.mixed_channels = omegaconf_select(cfg, "mixed_channels", False)
 

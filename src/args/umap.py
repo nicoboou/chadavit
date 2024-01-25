@@ -35,7 +35,8 @@ _SUPPORTED_DATASETS = [
     "cyclops",
     "tissuemnist",
     "bbbc021xbray",
-    "mtbenchreg"
+    "mtbenchreg",
+    "bray"
 ]
 
 
@@ -139,6 +140,9 @@ def parse_cfg(cfg: omegaconf.DictConfig):
 
     # Default value for channels strategy
     cfg.channels_strategy = omegaconf_select(cfg, "channels_strategy", None)
+
+    # Default value for return_all_tokens
+    cfg.backbone.kwargs.return_all_tokens = omegaconf_select(cfg, "backbone.kwargs.return_all_tokens", False)
 
     # default values for slurm stuff
     cfg = add_and_assert_slurm_cfg(cfg)

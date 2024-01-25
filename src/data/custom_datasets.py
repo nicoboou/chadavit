@@ -208,6 +208,59 @@ class IDRCell100K(Dataset):
                 file_list.append((image_id, channel_paths))
 
         return file_list
+    
+class Bray(Dataset):
+    def __init__(self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0):
+        self.root_dir = root_dir
+        self.train = train
+        self.transform = transform
+        self.file_list = self._collect_files()
+        self.sample_ratio = sample_ratio  # The ratio of images to sample
+
+        if shuffle:
+            random.shuffle(self.file_list)
+
+    def __getitem__(self, index):
+        img_path = self.file_list[index]
+
+        image_array = np.load(img_path)
+        image_array = image_array['sample'].astype(np.float32)
+
+        if self.transform is not None:
+            augmented_image = self.transform(image=image_array)
+
+        # ========= IF YOU WANT TO VIZUALIZE THE TRANSFORMATION YOU DO ========= #
+        # if self.train:
+        #    vizualize_aug(save_dir='.', raw_image=image_array, augmented_image=augmented_image, index_to_query=image_id)
+
+        return augmented_image, -1 #returning a dummy label
+
+    def __len__(self):
+        return len(self.file_list)
+
+    def _collect_files(self):
+        file_list = []
+
+        if self.train:
+            self.csv_file = os.path.join(self.root_dir, 'bray_paths/train_split.csv')
+        else:
+            self.csv_file = os.path.join(self.root_dir, 'bray_paths/val_split.csv')
+
+        with open(self.csv_file, 'r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Skip the header row
+            for row in reader:
+                img_path = row[0]
+                try:
+                    # check consistency of channel paths if encapsulated in a string, and convert to list
+                    img_path = eval(img_path)
+                except (NameError, SyntaxError):
+                    pass
+                # Add self.root_dir for each channel path
+                
+                file_list.append(img_path)
+
+        return file_list
 
 class BBBC021xBray(Dataset):
     def __init__(self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0):

@@ -21,6 +21,9 @@ def parse_cfg(cfg: omegaconf.DictConfig):
     # backbone kwargs
     cfg.backbone.kwargs = omegaconf_select(cfg, "backbone.kwargs", {})
 
+    # Default value for return_all_tokens
+    cfg.backbone.kwargs.return_all_tokens = omegaconf_select(cfg, "backbone.kwargs.return_all_tokens", False)
+
     # Batch weights
     assert not omegaconf.OmegaConf.is_missing(cfg, "pretrained_feature_extractor")
 
