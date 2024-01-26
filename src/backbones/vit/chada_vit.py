@@ -335,5 +335,5 @@ def chada_vit(**kwargs):
     embed_dim = kwargs['embed_dim']
     return_all_tokens = kwargs['return_all_tokens']
     max_number_channels = kwargs['max_number_channels']
-    model = ChAdaViT(patch_size=patch_size, embed_dim=embed_dim, depth=12, num_heads=12, norm_layer=partial(nn.LayerNorm, eps=1e-6), return_all_tokens=return_all_tokens, max_number_channels=max_number_channels)
+    model = ChAdaViT(patch_size=patch_size, embed_dim=embed_dim, depth=12, num_heads=2, norm_layer=partial(nn.LayerNorm, eps=1e-6), return_all_tokens=return_all_tokens, max_number_channels=max_number_channels)
     return model

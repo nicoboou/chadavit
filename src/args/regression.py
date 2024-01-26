@@ -123,6 +123,10 @@ def parse_cfg(cfg: omegaconf.DictConfig):
     # Default value for return_all_tokens
     cfg.backbone.kwargs.return_all_tokens = omegaconf_select(cfg, "backbone.kwargs.return_all_tokens", False)
 
+    # Add max_number_channels to kwargs if using multi_channels strategy
+    if cfg.channels_strategy == "multi_channels":
+        cfg.backbone.kwargs["max_number_channels"] = cfg.data.max_img_channels
+
     # Default value for mixed_channels
     cfg.mixed_channels = omegaconf_select(cfg, "mixed_channels", False)
 
