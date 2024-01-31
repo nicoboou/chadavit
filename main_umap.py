@@ -32,7 +32,7 @@ from src.args.umap import parse_cfg
 from src.data.classification_dataloader import prepare_data
 from src.methods import METHODS
 from src.utils.auto_umap import OfflineUMAP
-from src.utils.misc import omegaconf_select
+from src.utils.misc import omegaconf_select, seed_everything_manual
 
 
 @hydra.main(version_base="1.2")
@@ -42,6 +42,8 @@ def main(cfg: DictConfig):
     # without making the user specify every single thing about the model
     OmegaConf.set_struct(cfg, False)
     cfg = parse_cfg(cfg)
+
+    seed_everything_manual(cfg.seed)
 
     assert cfg.method in METHODS, f"Choose from {METHODS.keys()}"
 

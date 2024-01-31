@@ -39,7 +39,8 @@ from src.data.classification_dataloader import (
 )
 from src.methods import METHODS
 from src.utils.knn import WeightedKNNClassifier
-from src.utils.misc import omegaconf_select
+from src.utils.misc import omegaconf_select, seed_everything_manual
+from src.data.channels_strategies import modify_first_layer
 
 @torch.no_grad()
 def extract_features(loader: DataLoader, model: nn.Module, mixed_channels=False) -> Tuple[torch.Tensor]:
@@ -170,6 +171,8 @@ def main(cfg: DictConfig):
         format="%(name)s - %(levelname)s - %(message)s",
     )
 
+    seed_everything_manual(cfg.seed)
+    
     assert cfg.method in METHODS, f"Choose from {METHODS.keys()}"
 
     # Assert pretraining rule
@@ -201,6 +204,11 @@ def main(cfg: DictConfig):
         cfg_pretrained_model.backbone.kwargs.return_all_tokens = omegaconf_select(cfg, "backbone.kwargs.return_all_tokens", False)
 
         model = METHODS[cfg.method](cfg).load_from_checkpoint(ckpt_path, strict=False, cfg=cfg_pretrained_model)
+
+        # modify first layer AFTER loading pretrained weights for Standard architecture (trained on 3-Channels/RGB images)
+        if not (cfg.channels_strategy == "one_channel" or cfg.channels_strategy == "multi_channels"):
+            model.backbone = modify_first_layer(backbone=model.backbone, cfg=cfg, pretrained=False)
+        
         model.cuda()
 
     logging.info(f"Loaded {ckpt_path}")

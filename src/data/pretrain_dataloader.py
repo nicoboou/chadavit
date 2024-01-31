@@ -38,7 +38,7 @@ import cv2
 
 # Local imports
 from src.data.channels_strategies import RandomDiscarder, one_channel_collate_fn
-from src.data.custom_datasets import IDRCell100K, Bray
+from src.data.custom_datasets import IDRCell100K, IDRCell100K_3Channels, Bray
 from src.data.custom_transforms import CustomColorJitter
 
 try:
@@ -269,7 +269,7 @@ def build_transform_pipeline(dataset, cfg):
 
     augmentations = []
 
-    if dataset == "idrcell100k" or dataset == "bray":
+    if dataset == "idrcell100k" or dataset == "idrcell100k_3channels" or dataset == "bray":
         if cfg.rrc.enabled:
             augmentations.append(
                 A.augmentations.crops.transforms.RandomResizedCrop(
@@ -461,6 +461,11 @@ def prepare_datasets(
         if return_val_dataset:
             val_dataset = dataset_with_index(IDRCell100K)(root_dir=val_data_path, train=False, transform=transform)
     
+    elif dataset == "idrcell100k_3channels":
+        train_dataset = dataset_with_index(IDRCell100K_3Channels)(root_dir=train_data_path, train=True, transform=transform)
+        if return_val_dataset:
+            val_dataset = dataset_with_index(IDRCell100K_3Channels)(root_dir=val_data_path, train=False, transform=transform)
+            
     elif dataset == "bray":
         train_dataset = dataset_with_index(Bray)(root_dir=train_data_path, train=True, transform=transform)
         if return_val_dataset:

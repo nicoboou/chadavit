@@ -45,4 +45,7 @@ def parse_cfg(cfg: omegaconf.DictConfig):
     # Output dir
     cfg.output_dir = omegaconf_select(cfg, "output_dir", '.')
 
+    # Seed
+    cfg.seed = omegaconf_select(cfg, "seed", None)
+
     return cfg

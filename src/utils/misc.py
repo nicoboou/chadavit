@@ -22,6 +22,7 @@ import math
 import os
 from typing import Dict, List, Optional, Tuple
 import cv2
+import random
 import tifffile
 
 import numpy as np
@@ -528,3 +529,24 @@ def pop_nan_data(X, kys=None):
                 yi = np.array(kyi)[inds]
             ys.append(yi)
         return X, ys
+
+def seed_everything_manual(seed: Optional[int] = None) -> int:
+    """Function that sets seed for pseudo-random number generators in: pytorch, numpy, python.random
+    If `None`, will select a random seed.
+    
+    Args:
+        seed: Optional integer seed for global random state.
+    
+    Returns:
+        The seed used.
+    """
+    if seed is None:
+        # Select a random seed if none is provided
+        seed = np.random.randint(0, 2**31)
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)

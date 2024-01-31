@@ -24,6 +24,7 @@ from omegaconf import DictConfig, OmegaConf
 from src.methods.base import BaseMethod
 from src.args.attn import parse_cfg
 from src.data.channels_strategies import modify_first_layer
+from src.utils.misc import seed_everything_manual
 
 from src.backbones.vit.vit_attn_viz import VisionTransformerAttnViz
 
@@ -94,6 +95,8 @@ def main(cfg: DictConfig):
     cfg = parse_cfg(cfg)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    seed_everything_manual(cfg.seed)
 
     # initialize backbone
     backbone_model = BaseMethod._BACKBONES[cfg.backbone.name]

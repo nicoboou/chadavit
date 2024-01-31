@@ -27,7 +27,7 @@ import torch
 import wandb
 from torchsummary import summary
 from omegaconf import DictConfig, OmegaConf
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor, RichModelSummary
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.strategies.ddp import DDPStrategy
@@ -77,6 +77,8 @@ def main(cfg: DictConfig):
         filemode="w",
         format="%(name)s - %(levelname)s - %(message)s",
     )
+
+    seed_everything(cfg.seed)
 
     # initialize backbone
     backbone_model = BaseMethod._BACKBONES[cfg.backbone.name]

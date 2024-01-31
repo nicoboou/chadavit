@@ -27,7 +27,7 @@ import torch
 import wandb
 from torchsummary import summary
 from omegaconf import DictConfig, OmegaConf
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor, RichModelSummary
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.strategies.ddp import DDPStrategy
@@ -80,6 +80,8 @@ def main(cfg: DictConfig):
         format="%(name)s - %(levelname)s - %(message)s",
     )
 
+    seed_everything(cfg.seed)
+
     # initialize backbone
     backbone_model = BaseMethod._BACKBONES[cfg.backbone.name]
 
@@ -95,8 +97,8 @@ def main(cfg: DictConfig):
         )
         backbone = modify_first_layer(backbone=backbone, cfg=cfg, pretrained=pretrained)
 
-    # load custom pretrained weights
-    else:
+    # load custom pretrained weights for OneChannel or MultiChannels
+    elif cfg.channels_strategy == "one_channel" or cfg.channels_strategy == "multi_channels":
         assert (
             ckpt_path.endswith(".ckpt") or ckpt_path.endswith(".pth") or ckpt_path.endswith(".pt")
         ), "If not loading pretrained imagenet weights on backbone, pretrained_feature_extractor must be a .ckpt or .pth file"
@@ -114,6 +116,26 @@ def main(cfg: DictConfig):
                 state[k.replace("backbone.", "")] = state[k]
             del state[k]
         backbone.load_state_dict(state, strict=False)
+    
+    # load custom pretrained weights for Standard architecture (trained on 3-Channels/RGB images)
+    else:
+        assert (
+            ckpt_path.endswith(".ckpt") or ckpt_path.endswith(".pth") or ckpt_path.endswith(".pt")
+        ), "If not loading pretrained imagenet weights on backbone, pretrained_feature_extractor must be a .ckpt or .pth file"
+        pretrained = False
+        backbone = backbone_model(method=cfg.pretrain_method, **cfg.backbone.kwargs)
+        state = torch.load(ckpt_path, map_location="cpu")["state_dict"]
+        for k in list(state.keys()):
+            if "encoder" in k:
+                state[k.replace("encoder", "backbone")] = state[k]
+                logging.warn(
+                    "You are using an older checkpoint. Use a new one as some issues might arrise."
+                )
+            if "backbone" in k:
+                state[k.replace("backbone.", "")] = state[k]
+            del state[k]
+        backbone.load_state_dict(state, strict=False)
+        backbone = modify_first_layer(backbone=backbone, cfg=cfg, pretrained=pretrained)
 
     logging.info(f"Loaded {ckpt_path}")
 

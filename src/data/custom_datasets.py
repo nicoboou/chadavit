@@ -208,7 +208,77 @@ class IDRCell100K(Dataset):
                 file_list.append((image_id, channel_paths))
 
         return file_list
-    
+
+class IDRCell100K_3Channels(Dataset):
+    '''
+    Used only for a baseline comparison with a Standard ViT trained on 3 channels images.
+    '''
+    def __init__(self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0):
+        self.root_dir = root_dir
+        self.train = train
+        self.transform = transform
+        self.file_list = self._collect_files()
+        self.sample_ratio = sample_ratio  # The ratio of images to sample
+
+        if shuffle:
+            random.shuffle(self.file_list)
+
+    def __getitem__(self, index):
+        image_id, channel_paths = self.file_list[index]
+        if isinstance(channel_paths, str):
+            file_paths = eval(channel_paths)
+        else:
+            file_paths = channel_paths
+
+        image_channels = []
+        for file_path in file_paths:
+            image = Image.open(file_path)
+            channel_array = np.array(image)[:, :, np.newaxis]  # Add a new axis to make it 3-dimensional
+            image_channels.append(channel_array)
+
+        image_array = np.concatenate(image_channels, axis=2).astype(np.float32)
+
+        if self.transform is not None:
+            augmented_image = self.transform(image=image_array)
+
+        # ========= IF YOU WANT TO VIZUALIZE THE TRANSFORMATION YOU DO ========= #
+        # if self.train:
+        #    vizualize_aug(save_dir='.', raw_image=image_array, augmented_image=augmented_image, index_to_query=image_id)
+
+        return augmented_image, -1 #returning a dummy label
+
+    def __len__(self):
+        return len(self.file_list)
+
+    def _collect_files(self):
+        file_list = []
+
+        if self.train:
+            self.csv_file = os.path.join(self.root_dir, 'train.csv')
+        else:
+            self.csv_file = os.path.join(self.root_dir, 'test.csv')
+
+        with open(self.csv_file, 'r') as file:
+            reader = csv.reader(file)
+            for row in reader:
+                image_id = row[0]
+                channel_paths = row[1]
+                try:
+                    # check consistency of channel paths if encapsulated in a string, and convert to list
+                    channel_paths = eval(channel_paths)
+                except (NameError, SyntaxError):
+                    pass
+                # Add self.root_dir for each channel path
+                channel_paths = [os.path.join(self.root_dir,'images',channel_path)for channel_path in channel_paths]
+                
+                # Filter out images with less than 3 channels
+                if len(channel_paths) >= 3:
+                    # Take the first 3 channels
+                    channel_paths = channel_paths[:3]
+                    file_list.append((image_id, channel_paths))
+
+        return file_list
+      
 class Bray(Dataset):
     def __init__(self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0):
         self.root_dir = root_dir

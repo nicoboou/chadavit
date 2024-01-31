@@ -30,6 +30,7 @@ def vit_ultra_tiny(patch_size=16, **kwargs):
         patch_size=patch_size, embed_dim=32, depth=12, num_heads=2, num_classes=0, dynamic_img_size=True, **kwargs
     )
     pretrained = model_kwargs.pop("pretrained", False)
+    del model_kwargs["return_all_tokens"]
     model = _create_vision_transformer(
         "vit_tiny_patch16_224", pretrained=pretrained, **model_kwargs
     )
@@ -55,6 +56,7 @@ def vit_small(patch_size=16, **kwargs):
         patch_size=patch_size, embed_dim=384, depth=12, num_heads=6, num_classes=0, dynamic_img_size=True, **kwargs
     )
     pretrained = model_kwargs.pop("pretrained", False)
+    del model_kwargs["return_all_tokens"]
     model = _create_vision_transformer(
         "vit_small_patch16_224", pretrained=pretrained, **model_kwargs
     )
@@ -67,6 +69,7 @@ def vit_base(patch_size=16, **kwargs):
         patch_size=patch_size, embed_dim=768, depth=12, num_heads=12, num_classes=0,dynamic_img_size=True, **kwargs
     )
     pretrained = model_kwargs.pop("pretrained", False)
+    del model_kwargs["return_all_tokens"]
     model = _create_vision_transformer(
         "vit_base_patch16_224", pretrained=pretrained, **model_kwargs
     )
@@ -79,6 +82,7 @@ def vit_large(patch_size=16, **kwargs):
         patch_size=patch_size, embed_dim=1024, depth=24, num_heads=16, num_classes=0,dynamic_img_size=True, **kwargs
     )
     pretrained = model_kwargs.pop("pretrained", False)
+    del model_kwargs["return_all_tokens"]
     model = _create_vision_transformer(
         "vit_large_patch16_224", pretrained=pretrained, **model_kwargs
     )

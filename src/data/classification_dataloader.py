@@ -41,7 +41,7 @@ except ImportError:
 else:
     _h5_available = True
 
-from src.data.custom_datasets import IDRCell100K, BBBC021, BloodMNIST, BBBC048, CyclOPS, TissueMNIST, Transloc, BBBC021xBray, MTBenchReg, Bray
+from src.data.custom_datasets import IDRCell100K, IDRCell100K_3Channels, BBBC021, BloodMNIST, BBBC048, CyclOPS, TissueMNIST, Transloc, BBBC021xBray, MTBenchReg, Bray
 
 class AlbumentationTransform:
     def __init__(self, transform=None):
@@ -291,6 +291,7 @@ def prepare_transforms(dataset: str) -> Tuple[nn.Module, nn.Module]:
         "imagenet100": imagenet_pipeline,
         "imagenet": imagenet_pipeline,
         "idrcell100k": idrcell100k_pipeline,
+        "idrcell100k_3channels": idrcell100k_pipeline, # same as idrcell100k_pipeline
         "bbbc021": bbbc021_pipeline,
         "bloodmnist": bloodmnist_pipeline,
         "bbbc048": bbbc048_pipeline,
@@ -305,7 +306,7 @@ def prepare_transforms(dataset: str) -> Tuple[nn.Module, nn.Module]:
     assert dataset in pipelines
 
     pipeline = pipelines[dataset]
-    if dataset in ["idrcell100k", "bbbc021", "bbbc021xbray", "bray"]:
+    if dataset in ["idrcell100k", "idrcell100k_3channels", "bbbc021", "bbbc021xbray", "bray"]:
         T_train = AlbumentationTransform(transform=pipeline["T_train"])
         T_val = AlbumentationTransform(transform=pipeline["T_val"])
     else:
@@ -352,7 +353,7 @@ def prepare_datasets(
         sandbox_folder = Path(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         val_data_path = sandbox_folder / "datasets"
 
-    assert dataset in ["cifar10", "cifar100", "stl10", "imagenet", "imagenet100", "bbbc021", "idrcell100k", "bloodmnist", "bbbc048", "cyclops", "tissuemnist", "transloc", "bbbc021xbray", "mtbenchreg", "bray"]
+    assert dataset in ["cifar10", "cifar100", "stl10", "imagenet", "imagenet100", "bbbc021", "idrcell100k", "idrcell100k_3channels", "bloodmnist", "bbbc048", "cyclops", "tissuemnist", "transloc", "bbbc021xbray", "mtbenchreg", "bray"]
 
     # ----------- Natural images datasets ----------- #
     if dataset in ["cifar10", "cifar100"]:
@@ -399,6 +400,10 @@ def prepare_datasets(
         train_dataset = IDRCell100K(root_dir=train_data_path, train=True, transform=T_train, sample_ratio=sample_ratio)
         val_dataset = IDRCell100K(root_dir=val_data_path, train=False, transform=T_val, sample_ratio=sample_ratio)
 
+    elif dataset == "idrcell100k_3channels":
+        train_dataset = IDRCell100K_3Channels(root_dir=train_data_path, train=True, transform=T_train, sample_ratio=sample_ratio)
+        val_dataset = IDRCell100K_3Channels(root_dir=val_data_path, train=False, transform=T_val, sample_ratio=sample_ratio)
+        
     elif dataset == "bray":
         train_dataset = Bray(root_dir=train_data_path, train=True, transform=T_train, sample_ratio=sample_ratio)
         val_dataset = Bray(root_dir=val_data_path, train=False, transform=T_val, sample_ratio=sample_ratio)

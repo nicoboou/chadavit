@@ -105,6 +105,8 @@ class RegressionModel(pl.LightningModule):
                 features_dim = cfg.data.img_channels * self.backbone.patch_embed.num_patches * self.backbone.embed_dim
             elif cfg.channels_strategy == "multi_channels":
                 features_dim = cfg.data.img_channels * self.backbone.token_learner.num_patches * self.backbone.embed_dim
+            else:
+                features_dim = self.backbone.patch_embed.num_patches * self.backbone.embed_dim
 
         # Num of classes
         self.num_target_nodes = 1  # for simple regression
@@ -341,12 +343,13 @@ class RegressionModel(pl.LightningModule):
                     feats = feats.flatten(start_dim=1)
 
                 elif self.return_all_tokens:
-                    # Concatenate feature embeddings per image
-                    chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
-                    chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
-                    # Concatenate the chunks along the batch dimension
-                    feats = torch.stack(chunks, dim=0)
-                    # Assuming tensor is of shape (batch_size, img_channels, backbone_output_dim)
+                    if (self.channels_strategy == "one_channel" or self.channels_strategy == "multi_channels"):
+                        # Concatenate feature embeddings per image
+                        chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
+                        chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
+                        # Concatenate the chunks along the batch dimension
+                        feats = torch.stack(chunks, dim=0)
+                    # Assuming tensor is of shape (batch_size, num_tokens, backbone_output_dim)
                     feats = feats.flatten(start_dim=1)
 
         logits = self.regressor(feats)  # feats = (batch_size, img_channels * backbone_output_dim)
