@@ -10,6 +10,33 @@
 Official PyTorch implementation and pretrained models of ChAda-ViT. For details, see **ChAda-ViT: Channel Adaptive Attention for Joint Representation Learning of Heterogeneous Microscopy Images**
 [[`arXiv`](https://arxiv.org/abs/2311.15264)]
 
+<table style="margin: auto">
+  <thead>
+    <tr>
+      <th>source</th>
+      <th>description</th>
+      <th>link</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Arxiv</td>
+      <td align="left">Paper accepted at CVPR 24</td>
+      <td><a href="https://arxiv.org/abs/2311.15264">link</a></td>
+    </tr>
+    <tr>
+      <td>HuggingFace 🤗</td>
+      <td align="left">Model repo</td>
+      <td><a href="https://huggingface.co/datasets/nicoboou/chadavit16-moyen">link</a></td>
+    </tr>
+    <tr>
+      <td>HuggingFace 🤗</td>
+      <td align="left">Dataset repo</td>
+      <td><a href="https://huggingface.co/datasets/nicoboou/IDRCell100k">link</a></td>
+    </tr>
+  </tbody>
+</table>
+
 ## 🚀 Introduction
 
 _**"How could we process images of different modalities, with different number of channels, and of different types all within one single Vision Transformer model ?"**_
