@@ -27,7 +27,7 @@ Official PyTorch implementation and pretrained models of ChAda-ViT. For details,
     <tr>
       <td>HuggingFace 🤗</td>
       <td align="left">Model repo</td>
-      <td><a href="https://huggingface.co/datasets/nicoboou/chadavit16-moyen">link</a></td>
+      <td><a href="https://huggingface.co/nicoboou/chadavit16-moyen">link</a></td>
     </tr>
     <tr>
       <td>HuggingFace 🤗</td>
