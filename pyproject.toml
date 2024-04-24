@@ -232,7 +232,6 @@ xxhash = "3.2.0"
 xyzservices = "2022.9.0"
 yapf = "0.40.1"
 yarl = "1.9.2"
-zeroc-ice = "3.6.5"
 zipp = "3.11.0"
 
 [tool.poetry.group.dev.dependencies]
