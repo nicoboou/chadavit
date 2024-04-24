@@ -1758,28 +1758,6 @@ files = [
 ]
 
 [[package]]
-name = "idr-py"
-version = "0.4.2"
-description = "Helper methods for accessing the Image Data Resource (IDR)"
-optional = false
-python-versions = ">=3"
-files = [
-    {file = "idr-py-0.4.2.tar.gz", hash = "sha256:946388a4ad4b3d3ed9e5a5b3f331e92388ee1834cfb83af88186f61387cea07a"},
-    {file = "idr_py-0.4.2-py3-none-any.whl", hash = "sha256:4096557d133674f3bf7b79124c0314890e75b4c2566a9c6e3516e516fd66e5e6"},
-]
-
-[package.dependencies]
-ipython = "*"
-ipywidgets = "*"
-matplotlib = "*"
-omero-py = ">=5.6.0"
-pandas = "*"
-requests = "*"
-scipy = "*"
-seaborn = "*"
-zeroc-ice = ">3.6,<3.7"
-
-[[package]]
 name = "ijson"
 version = "3.2.0.post0"
 description = "Iterative JSON parser with standard Python iterator interfaces"
@@ -3110,24 +3088,6 @@ files = [
 [package.dependencies]
 antlr4-python3-runtime = "==4.9.*"
 PyYAML = ">=5.1.0"
-
-[[package]]
-name = "omero-py"
-version = "5.7.1"
-description = "Python bindings to the OMERO.blitz server"
-optional = false
-python-versions = ">=3"
-files = [
-    {file = "omero-py-5.7.1.tar.gz", hash = "sha256:dfbe346bb1a0119632322f5c887d289ddb6db80e7156fdb6a36831de5fd5b1af"},
-    {file = "omero_py-5.7.1-py3-none-any.whl", hash = "sha256:86060bf7ba9e78540df21a1a81b673cc7ab242596f9022314f17e19c7b55fcde"},
-]
-
-[package.dependencies]
-future = "*"
-numpy = "*"
-Pillow = "*"
-pywin32 = {version = "*", markers = "platform_system == \"Windows\""}
-zeroc-ice = ">=3.6.4,<3.7"
 
 [[package]]
 name = "opencv-python"
@@ -5898,22 +5858,6 @@ idna = ">=2.0"
 multidict = ">=4.0"
 
 [[package]]
-name = "zeroc-ice"
-version = "3.6.5"
-description = "Ice is a comprehensive RPC framework with support for Python, C++, .NET, Java, JavaScript and more."
-optional = false
-python-versions = "*"
-files = [
-    {file = "zeroc-ice-3.6.5.tar.gz", hash = "sha256:4235ffeb605bcd4e22e716577f7d61e4aa1bc82f65276bb542701a81b7933356"},
-    {file = "zeroc_ice-3.6.5-cp27-cp27m-macosx_10_14_x86_64.whl", hash = "sha256:9d13ed4130683726d9741e1f6789e7b977b14ad3aa39d23ffaa798bbf9e8f11b"},
-    {file = "zeroc_ice-3.6.5-cp27-cp27m-win32.whl", hash = "sha256:514e602f9e8d0c7f4cf1a3777fbc357e11323e5ab1bfa169edd6d76118e76920"},
-    {file = "zeroc_ice-3.6.5-cp27-cp27m-win_amd64.whl", hash = "sha256:8145dcea8fcff2a58ffd74a358d71a46b714b686b4106d8c97cda491c558e14b"},
-    {file = "zeroc_ice-3.6.5-cp37-cp37m-macosx_10_14_x86_64.whl", hash = "sha256:7088ec02c091174776e66f70dc7bbb81280f355bc948bfb1a5d156ef8525d15f"},
-    {file = "zeroc_ice-3.6.5-cp37-cp37m-win32.whl", hash = "sha256:b9d9e00e2ee649971e3615752531d73577daedbc8a0ac04178727651f1ed4fa2"},
-    {file = "zeroc_ice-3.6.5-cp37-cp37m-win_amd64.whl", hash = "sha256:cdc4c68111dfe3542287ca6d41d2ad7ee22d8806cf6231f124769c60351d636c"},
-]
-
-[[package]]
 name = "zipp"
 version = "3.11.0"
 description = "Backport of pathlib-compatible object wrapper for zip files"
@@ -5931,4 +5875,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "6d29cfb2e9a19f801c71c15cbec237e0464a0ff7fc1724a4fe5c7295f8590025"
+content-hash = "19eda9825c9cd68ab55a2b1c192edfbfeaeedcecc676e7c6db7e9d4767a67c33"
