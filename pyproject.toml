@@ -8,7 +8,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-lightning = "^2.1.2"
+pytorch-lightning = "2.0.2"
 scipy = "^1.11.4"
 absl-py = "1.4.0"
 accelerate = "0.20.3"
