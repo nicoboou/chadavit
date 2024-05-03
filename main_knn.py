@@ -17,7 +17,6 @@
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import logging
 import csv
 
 import hydra
@@ -162,15 +161,6 @@ def main(cfg: DictConfig):
     OmegaConf.set_struct(cfg, False)
     cfg = parse_cfg(cfg)
 
-    # initialize logging
-    logging_level = logging.INFO
-    logging.basicConfig(
-        level=logging_level,
-        filename=f"./logs/{cfg.name}.log",
-        filemode="w",
-        format="%(name)s - %(levelname)s - %(message)s",
-    )
-
     seed_everything_manual(cfg.seed)
     
     assert cfg.method in METHODS, f"Choose from {METHODS.keys()}"
@@ -210,8 +200,6 @@ def main(cfg: DictConfig):
             model.backbone = modify_first_layer(backbone=model.backbone, cfg=cfg, pretrained=False)
         
         model.cuda()
-
-    logging.info(f"Loaded {ckpt_path}")
 
     # prepare data
     _, T = prepare_transforms(cfg.data.dataset)

@@ -1,5 +1,4 @@
 # Main imports
-import logging
 from typing import Any, Callable, Dict, List, Tuple, Union
 
 # Pytorch imports
@@ -21,6 +20,7 @@ from src.utils.misc import (
     remove_bias_and_norm_from_weight_decay,
 )
 from src.backbones.vit.chada_vit import ChAdaViT
+
 
 class RegressionModel(pl.LightningModule):
     _OPTIMIZERS = {
@@ -102,11 +102,21 @@ class RegressionModel(pl.LightningModule):
                 features_dim *= cfg.data.img_channels
         else:
             if cfg.channels_strategy == "one_channel":
-                features_dim = cfg.data.img_channels * self.backbone.patch_embed.num_patches * self.backbone.embed_dim
+                features_dim = (
+                    cfg.data.img_channels
+                    * self.backbone.patch_embed.num_patches
+                    * self.backbone.embed_dim
+                )
             elif cfg.channels_strategy == "multi_channels":
-                features_dim = cfg.data.img_channels * self.backbone.token_learner.num_patches * self.backbone.embed_dim
+                features_dim = (
+                    cfg.data.img_channels
+                    * self.backbone.token_learner.num_patches
+                    * self.backbone.embed_dim
+                )
             else:
-                features_dim = self.backbone.patch_embed.num_patches * self.backbone.embed_dim
+                features_dim = (
+                    self.backbone.patch_embed.num_patches * self.backbone.embed_dim
+                )
 
         # Num of classes
         self.num_target_nodes = 1  # for simple regression
@@ -142,11 +152,6 @@ class RegressionModel(pl.LightningModule):
         self.warmup_epochs: int = cfg.scheduler.warmup_epochs
         self.scheduler_interval: str = cfg.scheduler.interval
         assert self.scheduler_interval in ["step", "epoch"]
-        if self.scheduler_interval == "step":
-            logging.warning(
-                f"Using scheduler_interval={self.scheduler_interval} might generate "
-                "issues when resuming a checkpoint."
-            )
 
         # if finetuning the backbone
         self.finetune: bool = cfg.finetune
@@ -170,7 +175,7 @@ class RegressionModel(pl.LightningModule):
 
         # return all tokens
         self.return_all_tokens = cfg.backbone.kwargs.return_all_tokens
-        
+
         # SLURM Handling
         self.slurm_enabled = cfg.slurm.enabled
         self.wandb_enabled = cfg.wandb.enabled
@@ -182,7 +187,6 @@ class RegressionModel(pl.LightningModule):
         self.mse = torchmetrics.MeanSquaredError()
         self.mae = torchmetrics.MeanAbsoluteError()
         self.pcc = torchmetrics.PearsonCorrCoef()
-
 
     @staticmethod
     def add_and_assert_specific_cfg(cfg: omegaconf.DictConfig) -> omegaconf.DictConfig:
@@ -207,13 +211,21 @@ class RegressionModel(pl.LightningModule):
         cfg.finetune = omegaconf_select(cfg, "finetune", False)
 
         # default for acc grad batches
-        cfg.accumulate_grad_batches = omegaconf_select(cfg, "accumulate_grad_batches", 1)
+        cfg.accumulate_grad_batches = omegaconf_select(
+            cfg, "accumulate_grad_batches", 1
+        )
 
         # default parameters for the scheduler
-        cfg.scheduler.lr_decay_steps = omegaconf_select(cfg, "scheduler.lr_decay_steps", None)
+        cfg.scheduler.lr_decay_steps = omegaconf_select(
+            cfg, "scheduler.lr_decay_steps", None
+        )
         cfg.scheduler.min_lr = omegaconf_select(cfg, "scheduler.min_lr", 0.0)
-        cfg.scheduler.warmup_start_lr = omegaconf_select(cfg, "scheduler.warmup_start_lr", 3e-5)
-        cfg.scheduler.warmup_epochs = omegaconf_select(cfg, "scheduler.warmup_epochs", 10)
+        cfg.scheduler.warmup_start_lr = omegaconf_select(
+            cfg, "scheduler.warmup_start_lr", 3e-5
+        )
+        cfg.scheduler.warmup_epochs = omegaconf_select(
+            cfg, "scheduler.warmup_epochs", 10
+        )
         cfg.scheduler.interval = omegaconf_select(cfg, "scheduler.interval", "step")
 
         # default parameters for performance optimization
@@ -248,7 +260,9 @@ class RegressionModel(pl.LightningModule):
                 no_weight_decay_list=self.backbone.no_weight_decay(),
                 layer_decay=self.layer_decay,
             )
-            learnable_params.append({"name": "regressor", "params": self.regressor.parameters()})
+            learnable_params.append(
+                {"name": "regressor", "params": self.regressor.parameters()}
+            )
         else:
             learnable_params = (
                 self.regressor.parameters()
@@ -279,7 +293,8 @@ class RegressionModel(pl.LightningModule):
 
         if self.scheduler == "warmup_cosine":
             max_warmup_steps = (
-                self.warmup_epochs * (self.trainer.estimated_stepping_batches / self.max_epochs)
+                self.warmup_epochs
+                * (self.trainer.estimated_stepping_batches / self.max_epochs)
                 if self.scheduler_interval == "step"
                 else self.warmup_epochs
             )
@@ -293,7 +308,9 @@ class RegressionModel(pl.LightningModule):
                     optimizer,
                     warmup_epochs=max_warmup_steps,
                     max_epochs=max_scheduler_steps,
-                    warmup_start_lr=self.warmup_start_lr if self.warmup_epochs > 0 else self.lr,
+                    warmup_start_lr=self.warmup_start_lr
+                    if self.warmup_epochs > 0
+                    else self.lr,
                     eta_min=self.min_lr,
                 ),
                 "interval": self.scheduler_interval,
@@ -312,7 +329,7 @@ class RegressionModel(pl.LightningModule):
 
         return [optimizer], [scheduler]
 
-    def forward(self, X: torch.tensor, index:int) -> Dict[str, Any]:
+    def forward(self, X: torch.tensor, index: int) -> Dict[str, Any]:
         """Performs forward pass of the frozen backbone and the linear layer for evaluation.
 
         Args:
@@ -328,13 +345,22 @@ class RegressionModel(pl.LightningModule):
         with torch.set_grad_enabled(self.finetune):
             if self.channels_strategy == "multi_channels":
                 # Assert that backbone is of class ChAdaViT
-                assert isinstance(self.backbone, ChAdaViT), "Only backbone of class ChAdaViT is currently supported for multi_channels strategy."
+                assert isinstance(
+                    self.backbone, ChAdaViT
+                ), "Only backbone of class ChAdaViT is currently supported for multi_channels strategy."
                 feats = self.backbone(X, index, self.list_num_channels)
             else:
-                feats = self.backbone.forward_features(X)[:,1:] if self.return_all_tokens else self.backbone(X)
-            
+                feats = (
+                    self.backbone.forward_features(X)[:, 1:]
+                    if self.return_all_tokens
+                    else self.backbone(X)
+                )
+
             if not self.mixed_channels:
-                if not self.return_all_tokens and self.channels_strategy == "one_channel":
+                if (
+                    not self.return_all_tokens
+                    and self.channels_strategy == "one_channel"
+                ):
                     # Concatenate feature embeddings per image
                     chunks = torch.split(feats, self.list_num_channels[index], dim=0)
                     # Concatenate the chunks along the batch dimension
@@ -343,19 +369,30 @@ class RegressionModel(pl.LightningModule):
                     feats = feats.flatten(start_dim=1)
 
                 elif self.return_all_tokens:
-                    if (self.channels_strategy == "one_channel" or self.channels_strategy == "multi_channels"):
+                    if (
+                        self.channels_strategy == "one_channel"
+                        or self.channels_strategy == "multi_channels"
+                    ):
                         # Concatenate feature embeddings per image
-                        chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
-                        chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
+                        chunks = feats.view(
+                            sum(self.list_num_channels[index]), -1, feats.shape[-1]
+                        )
+                        chunks = torch.split(
+                            chunks, self.list_num_channels[index], dim=0
+                        )
                         # Concatenate the chunks along the batch dimension
                         feats = torch.stack(chunks, dim=0)
                     # Assuming tensor is of shape (batch_size, num_tokens, backbone_output_dim)
                     feats = feats.flatten(start_dim=1)
 
-        logits = self.regressor(feats)  # feats = (batch_size, img_channels * backbone_output_dim)
+        logits = self.regressor(
+            feats
+        )  # feats = (batch_size, img_channels * backbone_output_dim)
         return {"logits": logits, "feats": feats}
 
-    def shared_step(self, batch: Tuple, batch_idx: int, index: int) -> Tuple[int, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def shared_step(
+        self, batch: Tuple, batch_idx: int, index: int
+    ) -> Tuple[int, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Performs operations that are shared between the training nd validation steps.
 
         Args:
@@ -367,7 +404,10 @@ class RegressionModel(pl.LightningModule):
                 batch size, loss, accuracy @1 and accuracy @5.
         """
 
-        if self.channels_strategy == "one_channel" or self.channels_strategy == "multi_channels":
+        if (
+            self.channels_strategy == "one_channel"
+            or self.channels_strategy == "multi_channels"
+        ):
             X, target, list_num_channels = batch
             self.list_num_channels = list_num_channels
         else:
@@ -415,7 +455,14 @@ class RegressionModel(pl.LightningModule):
 
         log = {"train_loss": out["loss"]}
         if self.mixup_func is None:
-            log.update({"train_r2": out["r2"], "train_mse": out["mse"], "train_mae": out['mae'], "train_pcc": out['pcc']})
+            log.update(
+                {
+                    "train_r2": out["r2"],
+                    "train_mse": out["mse"],
+                    "train_mae": out["mae"],
+                    "train_pcc": out["pcc"],
+                }
+            )
 
         self.log_dict(log, on_epoch=True, sync_dist=True)
         return out["loss"]
@@ -454,7 +501,13 @@ class RegressionModel(pl.LightningModule):
         """
 
         val_loss = weighted_mean(self.validation_step_metrics, "val_loss", "batch_size")
-        log = {"val_loss": val_loss, "val_r2": self.r2, "val_mse": self.mse, "val_mae": self.mae, "val_pcc": self.pcc}
+        log = {
+            "val_loss": val_loss,
+            "val_r2": self.r2,
+            "val_mse": self.mse,
+            "val_mae": self.mae,
+            "val_pcc": self.pcc,
+        }
 
         self.validation_step_metrics.clear()
         self.validation_step_targets.clear()

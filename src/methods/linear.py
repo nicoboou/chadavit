@@ -18,7 +18,6 @@
 # DEALINGS IN THE SOFTWARE.
 
 # Main imports
-import logging
 from typing import Any, Callable, Dict, List, Tuple, Union
 
 # Pytorch imports
@@ -46,6 +45,7 @@ from src.utils.misc import (
 )
 from src.backbones.vit.chada_vit import ChAdaViT
 from src.utils.slurm_logger import SLURMLogger
+
 
 class LinearModel(pl.LightningModule):
     _OPTIMIZERS = {
@@ -129,12 +129,22 @@ class LinearModel(pl.LightningModule):
                 features_dim *= cfg.data.img_channels
         else:
             if cfg.channels_strategy == "one_channel":
-                features_dim = cfg.data.img_channels * self.backbone.patch_embed.num_patches * self.backbone.embed_dim
+                features_dim = (
+                    cfg.data.img_channels
+                    * self.backbone.patch_embed.num_patches
+                    * self.backbone.embed_dim
+                )
             elif cfg.channels_strategy == "multi_channels":
-                features_dim = cfg.data.img_channels * self.backbone.token_learner.num_patches * self.backbone.embed_dim
+                features_dim = (
+                    cfg.data.img_channels
+                    * self.backbone.token_learner.num_patches
+                    * self.backbone.embed_dim
+                )
             else:
-                features_dim = self.backbone.patch_embed.num_patches * self.backbone.embed_dim
-        
+                features_dim = (
+                    self.backbone.patch_embed.num_patches * self.backbone.embed_dim
+                )
+
         # Num of classes
         self.num_classes = cfg.data.num_classes
 
@@ -169,11 +179,6 @@ class LinearModel(pl.LightningModule):
         self.warmup_epochs: int = cfg.scheduler.warmup_epochs
         self.scheduler_interval: str = cfg.scheduler.interval
         assert self.scheduler_interval in ["step", "epoch"]
-        if self.scheduler_interval == "step":
-            logging.warning(
-                f"Using scheduler_interval={self.scheduler_interval} might generate "
-                "issues when resuming a checkpoint."
-            )
 
         # if finetuning the backbone
         self.finetune: bool = cfg.finetune
@@ -202,14 +207,27 @@ class LinearModel(pl.LightningModule):
             self.job_id = cfg.slurm.job_id
 
         # Metrics
-        self.acc_at_1 = torchmetrics.classification.MulticlassAccuracy(num_classes=self.num_classes, top_k=1)
-        self.acc_at_5 = torchmetrics.classification.MulticlassAccuracy(num_classes=self.num_classes, top_k=5)
-        self.recall = torchmetrics.classification.MulticlassRecall(num_classes=self.num_classes, top_k=1)
-        self.precision = torchmetrics.classification.MulticlassPrecision(num_classes=self.num_classes, top_k=1)
-        self.auroc = torchmetrics.classification.MulticlassAUROC(num_classes=self.num_classes)
-        self.f1_score = torchmetrics.classification.MulticlassF1Score(num_classes=self.num_classes, top_k=1, average='macro')
-        self.cm = torchmetrics.classification.MulticlassConfusionMatrix(num_classes=self.num_classes)
-
+        self.acc_at_1 = torchmetrics.classification.MulticlassAccuracy(
+            num_classes=self.num_classes, top_k=1
+        )
+        self.acc_at_5 = torchmetrics.classification.MulticlassAccuracy(
+            num_classes=self.num_classes, top_k=5
+        )
+        self.recall = torchmetrics.classification.MulticlassRecall(
+            num_classes=self.num_classes, top_k=1
+        )
+        self.precision = torchmetrics.classification.MulticlassPrecision(
+            num_classes=self.num_classes, top_k=1
+        )
+        self.auroc = torchmetrics.classification.MulticlassAUROC(
+            num_classes=self.num_classes
+        )
+        self.f1_score = torchmetrics.classification.MulticlassF1Score(
+            num_classes=self.num_classes, top_k=1, average="macro"
+        )
+        self.cm = torchmetrics.classification.MulticlassConfusionMatrix(
+            num_classes=self.num_classes
+        )
 
     @staticmethod
     def add_and_assert_specific_cfg(cfg: omegaconf.DictConfig) -> omegaconf.DictConfig:
@@ -234,13 +252,21 @@ class LinearModel(pl.LightningModule):
         cfg.finetune = omegaconf_select(cfg, "finetune", False)
 
         # default for acc grad batches
-        cfg.accumulate_grad_batches = omegaconf_select(cfg, "accumulate_grad_batches", 1)
+        cfg.accumulate_grad_batches = omegaconf_select(
+            cfg, "accumulate_grad_batches", 1
+        )
 
         # default parameters for the scheduler
-        cfg.scheduler.lr_decay_steps = omegaconf_select(cfg, "scheduler.lr_decay_steps", None)
+        cfg.scheduler.lr_decay_steps = omegaconf_select(
+            cfg, "scheduler.lr_decay_steps", None
+        )
         cfg.scheduler.min_lr = omegaconf_select(cfg, "scheduler.min_lr", 0.0)
-        cfg.scheduler.warmup_start_lr = omegaconf_select(cfg, "scheduler.warmup_start_lr", 3e-5)
-        cfg.scheduler.warmup_epochs = omegaconf_select(cfg, "scheduler.warmup_epochs", 10)
+        cfg.scheduler.warmup_start_lr = omegaconf_select(
+            cfg, "scheduler.warmup_start_lr", 3e-5
+        )
+        cfg.scheduler.warmup_epochs = omegaconf_select(
+            cfg, "scheduler.warmup_epochs", 10
+        )
         cfg.scheduler.interval = omegaconf_select(cfg, "scheduler.interval", "step")
 
         # default parameters for performance optimization
@@ -275,7 +301,9 @@ class LinearModel(pl.LightningModule):
                 no_weight_decay_list=self.backbone.no_weight_decay(),
                 layer_decay=self.layer_decay,
             )
-            learnable_params.append({"name": "classifier", "params": self.classifier.parameters()})
+            learnable_params.append(
+                {"name": "classifier", "params": self.classifier.parameters()}
+            )
         else:
             learnable_params = (
                 self.classifier.parameters()
@@ -306,7 +334,8 @@ class LinearModel(pl.LightningModule):
 
         if self.scheduler == "warmup_cosine":
             max_warmup_steps = (
-                self.warmup_epochs * (self.trainer.estimated_stepping_batches / self.max_epochs)
+                self.warmup_epochs
+                * (self.trainer.estimated_stepping_batches / self.max_epochs)
                 if self.scheduler_interval == "step"
                 else self.warmup_epochs
             )
@@ -320,7 +349,9 @@ class LinearModel(pl.LightningModule):
                     optimizer,
                     warmup_epochs=max_warmup_steps,
                     max_epochs=max_scheduler_steps,
-                    warmup_start_lr=self.warmup_start_lr if self.warmup_epochs > 0 else self.lr,
+                    warmup_start_lr=self.warmup_start_lr
+                    if self.warmup_epochs > 0
+                    else self.lr,
                     eta_min=self.min_lr,
                 ),
                 "interval": self.scheduler_interval,
@@ -339,7 +370,7 @@ class LinearModel(pl.LightningModule):
 
         return [optimizer], [scheduler]
 
-    def forward(self, X: torch.tensor, index:int) -> Dict[str, Any]:
+    def forward(self, X: torch.tensor, index: int) -> Dict[str, Any]:
         """Performs forward pass of the frozen backbone and the linear layer for evaluation.
 
         Args:
@@ -355,13 +386,22 @@ class LinearModel(pl.LightningModule):
         with torch.set_grad_enabled(self.finetune):
             if self.channels_strategy == "multi_channels":
                 # Assert that backbone is of class ChAdaViT
-                assert isinstance(self.backbone, ChAdaViT), "Only backbone of class ChAdaViT is currently supported for multi_channels strategy."
+                assert isinstance(
+                    self.backbone, ChAdaViT
+                ), "Only backbone of class ChAdaViT is currently supported for multi_channels strategy."
                 feats = self.backbone(X, index, self.list_num_channels)
             else:
-                feats = self.backbone.forward_features(X)[:,1:] if self.return_all_tokens else self.backbone(X)
-            
+                feats = (
+                    self.backbone.forward_features(X)[:, 1:]
+                    if self.return_all_tokens
+                    else self.backbone(X)
+                )
+
             if not self.mixed_channels:
-                if not self.return_all_tokens and self.channels_strategy == "one_channel":
+                if (
+                    not self.return_all_tokens
+                    and self.channels_strategy == "one_channel"
+                ):
                     # Concatenate feature embeddings per image
                     chunks = torch.split(feats, self.list_num_channels[index], dim=0)
                     # Concatenate the chunks along the batch dimension
@@ -370,19 +410,30 @@ class LinearModel(pl.LightningModule):
                     feats = feats.flatten(start_dim=1)
 
                 elif self.return_all_tokens:
-                    if (self.channels_strategy == "one_channel" or self.channels_strategy == "multi_channels"):
+                    if (
+                        self.channels_strategy == "one_channel"
+                        or self.channels_strategy == "multi_channels"
+                    ):
                         # Concatenate feature embeddings per image
-                        chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
-                        chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
+                        chunks = feats.view(
+                            sum(self.list_num_channels[index]), -1, feats.shape[-1]
+                        )
+                        chunks = torch.split(
+                            chunks, self.list_num_channels[index], dim=0
+                        )
                         # Concatenate the chunks along the batch dimension
                         feats = torch.stack(chunks, dim=0)
                     # Assuming tensor is of shape (batch_size, num_tokens, backbone_output_dim)
                     feats = feats.flatten(start_dim=1)
 
-        logits = self.classifier(feats)  # feats = (batch_size, num_tokens * backbone_output_dim)
+        logits = self.classifier(
+            feats
+        )  # feats = (batch_size, num_tokens * backbone_output_dim)
         return {"logits": logits, "feats": feats}
 
-    def shared_step(self, batch: Tuple, batch_idx: int, index: int) -> Tuple[int, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def shared_step(
+        self, batch: Tuple, batch_idx: int, index: int
+    ) -> Tuple[int, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Performs operations that are shared between the training nd validation steps.
 
         Args:
@@ -394,7 +445,10 @@ class LinearModel(pl.LightningModule):
                 batch size, loss, accuracy @1 and accuracy @5.
         """
 
-        if self.channels_strategy == "one_channel" or self.channels_strategy == "multi_channels":
+        if (
+            self.channels_strategy == "one_channel"
+            or self.channels_strategy == "multi_channels"
+        ):
             X, target, list_num_channels = batch
             self.list_num_channels = list_num_channels
         else:
@@ -422,7 +476,19 @@ class LinearModel(pl.LightningModule):
             auroc = self.auroc(out, target)
             f1_score = self.f1_score(out, target)
 
-            metrics.update({"loss": loss, "acc1": acc1, "acc5": acc5, "acc_1_macro": acc_1, "acc_5_macro":acc_5, "recall": recall, "precision": precision, "auroc": auroc, "f1_score": f1_score})
+            metrics.update(
+                {
+                    "loss": loss,
+                    "acc1": acc1,
+                    "acc5": acc5,
+                    "acc_1_macro": acc_1,
+                    "acc_5_macro": acc_5,
+                    "recall": recall,
+                    "precision": precision,
+                    "auroc": auroc,
+                    "f1_score": f1_score,
+                }
+            )
 
             # if isinstance(self.logger, WandbLogger):
             #     cm, fig, ax = confusion_matrix(out, target, num_classes=self.num_classes, plot=True)
@@ -463,7 +529,18 @@ class LinearModel(pl.LightningModule):
 
         log = {"train_loss": out["loss"]}
         if self.mixup_func is None:
-            log.update({"train_acc1": out["acc1"], "train_acc5": out["acc5"], "train_acc1_macro": out['acc_1_macro'], "train_acc5_macro": out['acc_5_macro'], "train_recall": out["recall"], "train_precision": out["precision"], "train_auroc": out["auroc"], "train_f1_score": out["f1_score"]})
+            log.update(
+                {
+                    "train_acc1": out["acc1"],
+                    "train_acc5": out["acc5"],
+                    "train_acc1_macro": out["acc_1_macro"],
+                    "train_acc5_macro": out["acc_5_macro"],
+                    "train_recall": out["recall"],
+                    "train_precision": out["precision"],
+                    "train_auroc": out["auroc"],
+                    "train_f1_score": out["f1_score"],
+                }
+            )
 
         self.log_dict(log, on_epoch=True, sync_dist=True)
         return out["loss"]
@@ -491,7 +568,7 @@ class LinearModel(pl.LightningModule):
             "val_recall": out["recall"],
             "val_precision": out["precision"],
             "val_auroc": out["auroc"],
-            "val_f1_score": out["f1_score"]
+            "val_f1_score": out["f1_score"],
         }
 
         self.validation_step_metrics.append(metrics)
@@ -506,18 +583,28 @@ class LinearModel(pl.LightningModule):
         val_loss = weighted_mean(self.validation_step_metrics, "val_loss", "batch_size")
         val_acc1 = weighted_mean(self.validation_step_metrics, "val_acc1", "batch_size")
         val_acc5 = weighted_mean(self.validation_step_metrics, "val_acc5", "batch_size")
-        log = {"val_loss": val_loss, "val_acc1": val_acc1, "val_acc5": val_acc5, "val_recall": self.recall, "val_precision": self.precision, "val_auroc": self.auroc, "val_f1_score": self.f1_score}
+        log = {
+            "val_loss": val_loss,
+            "val_acc1": val_acc1,
+            "val_acc5": val_acc5,
+            "val_recall": self.recall,
+            "val_precision": self.precision,
+            "val_auroc": self.auroc,
+            "val_f1_score": self.f1_score,
+        }
 
         # confusion matrix
         pred = torch.cat(self.validation_step_preds)
         targets = torch.cat(self.validation_step_targets)
 
-        confusion_matrix_computed = self.cm(pred, targets).detach().cpu().numpy().astype(int)
-        #confusion_matrix.compute().detach().cpu().numpy().astype(int)
+        confusion_matrix_computed = (
+            self.cm(pred, targets).detach().cpu().numpy().astype(int)
+        )
+        # confusion_matrix.compute().detach().cpu().numpy().astype(int)
 
         df_cm = pd.DataFrame(confusion_matrix_computed)
-        plt.figure(figsize = (20,13))
-        fig_ = sns.heatmap(df_cm, annot=True, cmap='crest', fmt='d').get_figure()
+        plt.figure(figsize=(20, 13))
+        fig_ = sns.heatmap(df_cm, annot=True, cmap="crest", fmt="d").get_figure()
 
         # Save image locally
         if isinstance(self.logger, SLURMLogger):
@@ -527,7 +614,11 @@ class LinearModel(pl.LightningModule):
 
         elif isinstance(self.logger, WandbLogger):
             # adding captions
-            self.logger.log_image(key="Confusion Matrix", images=[wandb.Image(fig_)], caption=["Confusion_matrix"])
+            self.logger.log_image(
+                key="Confusion Matrix",
+                images=[wandb.Image(fig_)],
+                caption=["Confusion_matrix"],
+            )
             plt.close(fig_)
 
         self.validation_step_metrics.clear()

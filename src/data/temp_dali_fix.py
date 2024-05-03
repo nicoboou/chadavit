@@ -1,4 +1,3 @@
-import logging
 import math
 
 import numpy as np
@@ -22,7 +21,9 @@ class TempDALIGenericIterator(DALIGenericIterator):
         if self._reader_name:
             counter += self.batch_size
             if self._last_batch_policy == LastBatchPolicy.DROP:
-                should_end = np.any(self._counter_per_gpu + counter > self._shard_sizes_per_gpu)
+                should_end = np.any(
+                    self._counter_per_gpu + counter > self._shard_sizes_per_gpu
+                )
         else:
             counter += self._num_gpus * self.batch_size
             if self._last_batch_policy == LastBatchPolicy.DROP:
@@ -47,7 +48,9 @@ class TempDALIGenericIterator(DALIGenericIterator):
         # StopIteration indicating the pipeline is depleted. Here we first check if that
         # is the case, and if so we run the pipeline and drop the last batch
         if self._last_batch_policy == LastBatchPolicy.DROP and not ():
-            should_end = self._advance_and_check_drop_last(dry_run=True, end_iteration=False)
+            should_end = self._advance_and_check_drop_last(
+                dry_run=True, end_iteration=False
+            )
             already_ended = self._size > 0 and self._counter >= self._size
             if should_end and not already_ended:
                 self._get_outputs()
@@ -55,7 +58,10 @@ class TempDALIGenericIterator(DALIGenericIterator):
                 self._advance_and_check_drop_last(end_iteration=False)
 
         if self._counter >= self._size or self._size < 0:
-            if self._last_batch_policy == LastBatchPolicy.FILL and not self._last_batch_padded:
+            if (
+                self._last_batch_policy == LastBatchPolicy.FILL
+                and not self._last_batch_padded
+            ):
                 if self._reader_name:
                     # accurate way
                     # get the number of samples read in this epoch by each GPU
@@ -65,7 +71,9 @@ class TempDALIGenericIterator(DALIGenericIterator):
                     self._counter_per_gpu = self._counter_per_gpu + self._counter
                     # check how much each GPU read ahead from next shard, as shards have different
                     # size each epoch GPU may read ahead or not
-                    self._counter_per_gpu = self._counter_per_gpu - self._shard_sizes_per_gpu
+                    self._counter_per_gpu = (
+                        self._counter_per_gpu - self._shard_sizes_per_gpu
+                    )
                     # to make sure that in the next epoch we read the whole shard we need
                     # to set start value to the smallest one
                     self._counter = min(self._counter_per_gpu)
@@ -80,28 +88,40 @@ class TempDALIGenericIterator(DALIGenericIterator):
                     # move shards id for wrapped pipelines
                     self._shards_id = (self._shards_id + 1) % self._shards_num
                 # revaluate _size
-                if self._last_batch_policy == LastBatchPolicy.FILL and not self._last_batch_padded:
+                if (
+                    self._last_batch_policy == LastBatchPolicy.FILL
+                    and not self._last_batch_padded
+                ):
                     # move all shards ids GPU ahead
                     if not self._is_stick_to_shard:
-                        self._shard_sizes_per_gpu = np.roll(self._shard_sizes_per_gpu, 1)
+                        self._shard_sizes_per_gpu = np.roll(
+                            self._shard_sizes_per_gpu, 1
+                        )
                     # check how many samples we need to reach from each shard in next epoch
                     # per each GPU taking into account already read
-                    read_in_next_epoch = self._shard_sizes_per_gpu - self._counter_per_gpu
+                    read_in_next_epoch = (
+                        self._shard_sizes_per_gpu - self._counter_per_gpu
+                    )
                     # get the maximum number of samples and round it up to full batch sizes
                     self._size = (
-                        math.ceil(max(read_in_next_epoch) / self.batch_size) * self.batch_size
+                        math.ceil(max(read_in_next_epoch) / self.batch_size)
+                        * self.batch_size
                     )
                     # in case some epoch is skipped because we have read ahead in this epoch so
                     # much that in the next one we done already
                     if self._size == 0:
                         # it means that self._shard_sizes_per_gpu == self._counter_per_gpu,
                         # so we can jump to the next epoch and zero self._counter_per_gpu
-                        self._counter_per_gpu = np.zeros(self._shards_num, dtype=np.int64)
+                        self._counter_per_gpu = np.zeros(
+                            self._shards_num, dtype=np.int64
+                        )
                         # self._counter = min(self._counter_per_gpu), but just set 0
                         # to make it simpler
                         self._counter = 0
                         # roll once again
-                        self._shard_sizes_per_gpu = np.roll(self._shard_sizes_per_gpu, 1)
+                        self._shard_sizes_per_gpu = np.roll(
+                            self._shard_sizes_per_gpu, 1
+                        )
                         # as self._counter_per_gpu is 0 we can just use
                         # read_in_next_epoch = self._shard_sizes_per_gpu
                         self._size = (
@@ -115,7 +135,6 @@ class TempDALIGenericIterator(DALIGenericIterator):
                     with p._check_api_type_scope(types.PipelineAPIType.ITERATOR):
                         p.schedule_run()
         else:
-            logging.warning(
-                "DALI iterator does not support resetting while epoch is not finished. \
-                             Ignoring..."
+            print(
+                "DALI iterator does not support resetting while epoch is not finished. Ignoring..."
             )

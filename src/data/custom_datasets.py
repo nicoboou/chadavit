@@ -23,7 +23,6 @@ import os
 import csv
 import random
 import numpy as np
-import logging
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -35,7 +34,7 @@ from tqdm import tqdm
 from torchvision.transforms import *
 from src.utils import *
 from src.utils.misc import imread
-from datasets import load_dataset
+
 
 class H5Dataset(Dataset):
     def __init__(
@@ -82,13 +81,12 @@ class H5Dataset(Dataset):
             new_data = []
             for class_name, img_name, _ in self._data:
                 if class_name in class_set:
-                    new_data.append((class_name, img_name, self.class_to_idx[class_name]))
+                    new_data.append(
+                        (class_name, img_name, self.class_to_idx[class_name])
+                    )
             if not new_data:
-                logging.warn(
-                    "Skipped filtering. Tried to filter classes for imagenet100, "
-                    "but wasn't able to do so. Either make sure that you do not "
-                    "rely on the filtering, i.e. your h5 file is already filtered "
-                    "or make sure the class names are the default ones."
+                print(
+                    "Skipped filtering. Tried to filter classes for imagenet100, but wasn't able to do so. Either make sure that you do not rely on the filtering, i.e. your h5 file is already filtered or make sure the class names are the default ones."
                 )
             else:
                 self._data = new_data
@@ -96,14 +94,17 @@ class H5Dataset(Dataset):
     def _load_h5_data_info(self):
         self._data = []
         h5_data_info_file = os.path.join(
-            os.path.expanduser("~"), os.path.basename(os.path.splitext(self.h5_path)[0]) + ".txt"
+            os.path.expanduser("~"),
+            os.path.basename(os.path.splitext(self.h5_path)[0]) + ".txt",
         )
         if not os.path.isfile(h5_data_info_file):
             temp_h5_file = h5py.File(self.h5_path, "r")
 
             # collect data from the h5 file directly
             self.classes, self.class_to_idx = self._find_classes(temp_h5_file)
-            for class_name in tqdm(self.classes, desc="Collecting information about the h5 file"):
+            for class_name in tqdm(
+                self.classes, desc="Collecting information about the h5 file"
+            ):
                 y = self.class_to_idx[class_name]
                 for img_name in temp_h5_file[class_name].keys():
                     self._data.append((class_name, img_name, int(y)))
@@ -145,10 +146,14 @@ class H5Dataset(Dataset):
     def __len__(self):
         return len(self._data)
 
+
 # ========================================================== UNLABELLED Dataset ========================================================== #
 
+
 class IDRCell100K(Dataset):
-    def __init__(self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0):
+    def __init__(
+        self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0
+    ):
         self.root_dir = root_dir
         self.train = train
         self.transform = transform
@@ -168,7 +173,9 @@ class IDRCell100K(Dataset):
         image_channels = []
         for file_path in file_paths:
             image = Image.open(file_path)
-            channel_array = np.array(image)[:, :, np.newaxis]  # Add a new axis to make it 3-dimensional
+            channel_array = np.array(image)[
+                :, :, np.newaxis
+            ]  # Add a new axis to make it 3-dimensional
             image_channels.append(channel_array)
 
         image_array = np.concatenate(image_channels, axis=2).astype(np.float32)
@@ -180,7 +187,7 @@ class IDRCell100K(Dataset):
         # if self.train:
         #    vizualize_aug(save_dir='.', raw_image=image_array, augmented_image=augmented_image, index_to_query=image_id)
 
-        return augmented_image, -1 #returning a dummy label
+        return augmented_image, -1  # returning a dummy label
 
     def __len__(self):
         return len(self.file_list)
@@ -189,11 +196,11 @@ class IDRCell100K(Dataset):
         file_list = []
 
         if self.train:
-            self.csv_file = os.path.join(self.root_dir, 'train.csv')
+            self.csv_file = os.path.join(self.root_dir, "train.csv")
         else:
-            self.csv_file = os.path.join(self.root_dir, 'test.csv')
+            self.csv_file = os.path.join(self.root_dir, "test.csv")
 
-        with open(self.csv_file, 'r') as file:
+        with open(self.csv_file, "r") as file:
             reader = csv.reader(file)
             for row in reader:
                 image_id = row[0]
@@ -204,16 +211,23 @@ class IDRCell100K(Dataset):
                 except (NameError, SyntaxError):
                     pass
                 # Add self.root_dir for each channel path
-                channel_paths = [os.path.join(self.root_dir,'images',channel_path)for channel_path in channel_paths]
+                channel_paths = [
+                    os.path.join(self.root_dir, "images", channel_path)
+                    for channel_path in channel_paths
+                ]
                 file_list.append((image_id, channel_paths))
 
         return file_list
 
+
 class IDRCell100K_3Channels(Dataset):
-    '''
+    """
     Used only for a baseline comparison with a Standard ViT trained on 3 channels images.
-    '''
-    def __init__(self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0):
+    """
+
+    def __init__(
+        self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0
+    ):
         self.root_dir = root_dir
         self.train = train
         self.transform = transform
@@ -233,7 +247,9 @@ class IDRCell100K_3Channels(Dataset):
         image_channels = []
         for file_path in file_paths:
             image = Image.open(file_path)
-            channel_array = np.array(image)[:, :, np.newaxis]  # Add a new axis to make it 3-dimensional
+            channel_array = np.array(image)[
+                :, :, np.newaxis
+            ]  # Add a new axis to make it 3-dimensional
             image_channels.append(channel_array)
 
         image_array = np.concatenate(image_channels, axis=2).astype(np.float32)
@@ -245,7 +261,7 @@ class IDRCell100K_3Channels(Dataset):
         # if self.train:
         #    vizualize_aug(save_dir='.', raw_image=image_array, augmented_image=augmented_image, index_to_query=image_id)
 
-        return augmented_image, -1 #returning a dummy label
+        return augmented_image, -1  # returning a dummy label
 
     def __len__(self):
         return len(self.file_list)
@@ -254,11 +270,11 @@ class IDRCell100K_3Channels(Dataset):
         file_list = []
 
         if self.train:
-            self.csv_file = os.path.join(self.root_dir, 'train.csv')
+            self.csv_file = os.path.join(self.root_dir, "train.csv")
         else:
-            self.csv_file = os.path.join(self.root_dir, 'test.csv')
+            self.csv_file = os.path.join(self.root_dir, "test.csv")
 
-        with open(self.csv_file, 'r') as file:
+        with open(self.csv_file, "r") as file:
             reader = csv.reader(file)
             for row in reader:
                 image_id = row[0]
@@ -269,8 +285,11 @@ class IDRCell100K_3Channels(Dataset):
                 except (NameError, SyntaxError):
                     pass
                 # Add self.root_dir for each channel path
-                channel_paths = [os.path.join(self.root_dir,'images',channel_path)for channel_path in channel_paths]
-                
+                channel_paths = [
+                    os.path.join(self.root_dir, "images", channel_path)
+                    for channel_path in channel_paths
+                ]
+
                 # Filter out images with less than 3 channels
                 if len(channel_paths) >= 3:
                     # Take the first 3 channels
@@ -278,9 +297,12 @@ class IDRCell100K_3Channels(Dataset):
                     file_list.append((image_id, channel_paths))
 
         return file_list
-      
+
+
 class Bray(Dataset):
-    def __init__(self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0):
+    def __init__(
+        self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0
+    ):
         self.root_dir = root_dir
         self.train = train
         self.transform = transform
@@ -294,7 +316,7 @@ class Bray(Dataset):
         img_path = self.file_list[index]
 
         image_array = np.load(img_path)
-        image_array = image_array['sample'].astype(np.float32)
+        image_array = image_array["sample"].astype(np.float32)
 
         if self.transform is not None:
             augmented_image = self.transform(image=image_array)
@@ -303,7 +325,7 @@ class Bray(Dataset):
         # if self.train:
         #    vizualize_aug(save_dir='.', raw_image=image_array, augmented_image=augmented_image, index_to_query=image_id)
 
-        return augmented_image, -1 #returning a dummy label
+        return augmented_image, -1  # returning a dummy label
 
     def __len__(self):
         return len(self.file_list)
@@ -312,11 +334,11 @@ class Bray(Dataset):
         file_list = []
 
         if self.train:
-            self.csv_file = os.path.join(self.root_dir, 'bray_paths/train_split.csv')
+            self.csv_file = os.path.join(self.root_dir, "bray_paths/train_split.csv")
         else:
-            self.csv_file = os.path.join(self.root_dir, 'bray_paths/val_split.csv')
+            self.csv_file = os.path.join(self.root_dir, "bray_paths/val_split.csv")
 
-        with open(self.csv_file, 'r') as file:
+        with open(self.csv_file, "r") as file:
             reader = csv.reader(file)
             next(reader)  # Skip the header row
             for row in reader:
@@ -327,25 +349,28 @@ class Bray(Dataset):
                 except (NameError, SyntaxError):
                     pass
                 # Add self.root_dir for each channel path
-                
+
                 file_list.append(img_path)
 
         return file_list
 
+
 class BBBC021xBray(Dataset):
-    def __init__(self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0):
+    def __init__(
+        self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0
+    ):
         self.root_dir = root_dir
         self.train = train
         self.transform = transform
         self.dataset_to_idx = {}  # New dictionary for dataset encoding
-        self.target_to_idx = {}   # New dictionary for target encoding
+        self.target_to_idx = {}  # New dictionary for target encoding
         self.idx_to_dataset_name = {}  # New dictionary for dataset decoding
-        self.idx_to_target_name = {} # New dictionary for target decoding
+        self.idx_to_target_name = {}  # New dictionary for target decoding
         self.file_list = self._collect_files()
 
         # Initialize the encoding dictionaries
         self._init_label_encoders()
-        
+
         if shuffle:
             random.shuffle(self.file_list)
 
@@ -360,14 +385,18 @@ class BBBC021xBray(Dataset):
         self.target_to_idx = {target: idx for idx, target in enumerate(targets)}
 
         # Also create reverse mappings
-        self.idx_to_dataset_name = {idx: name for name, idx in self.dataset_to_idx.items()}
-        self.idx_to_target_name = {idx: name for name, idx in self.target_to_idx.items()}
+        self.idx_to_dataset_name = {
+            idx: name for name, idx in self.dataset_to_idx.items()
+        }
+        self.idx_to_target_name = {
+            idx: name for name, idx in self.target_to_idx.items()
+        }
 
     def __getitem__(self, index):
         channel_paths, dataset, target = self.file_list[index]
 
         # BBBC021 images
-        if dataset == 'bbbc021':
+        if dataset == "bbbc021":
             if isinstance(channel_paths, str):
                 file_paths = eval(channel_paths)
             else:
@@ -376,16 +405,18 @@ class BBBC021xBray(Dataset):
             image_channels = []
             for file_path in file_paths:
                 image = Image.open(file_path)
-                channel_array = np.array(image)[:, :, np.newaxis]  # Add a new axis to make it 3-dimensional
+                channel_array = np.array(image)[
+                    :, :, np.newaxis
+                ]  # Add a new axis to make it 3-dimensional
                 image_channels.append(channel_array)
 
             image_array = np.concatenate(image_channels, axis=2).astype(np.float32)
 
         # Bray images
-        elif dataset == 'bray':
+        elif dataset == "bray":
             img = np.load(channel_paths, allow_pickle=True)
-            image_array = img['sample']
-    
+            image_array = img["sample"]
+
         # Put the image to float32 pixel intensities
         image_array = image_array.astype(np.float32)
 
@@ -412,13 +443,13 @@ class BBBC021xBray(Dataset):
         file_list = []
 
         # No train or val diff, just here for UMAP plot testing
-        self.csv_file = os.path.join(self.root_dir, 'BBBC021xBray', 'train.csv')
-        
-        with open(self.csv_file, 'r') as file:
+        self.csv_file = os.path.join(self.root_dir, "BBBC021xBray", "train.csv")
+
+        with open(self.csv_file, "r") as file:
             reader = csv.reader(file)
             for row in reader:
-                if row and row[0].startswith('['):
-                    channel_paths_str = ','.join(row[:3])
+                if row and row[0].startswith("["):
+                    channel_paths_str = ",".join(row[:3])
                     channel_paths_str = channel_paths_str[1:-1]  # Remove the brackets
                     channel_paths_list = channel_paths_str.split("', '")
                     dataset = row[3]
@@ -428,12 +459,12 @@ class BBBC021xBray(Dataset):
                     except (ValueError, SyntaxError):
                         print(f"Error parsing channel paths: {channel_paths_list}")
                         continue
-                    
+
                     # Check if the paths exist and join with the root directory
                     valid_channel_paths = []
                     non_valid_channel_paths = []
                     for channel_path in channel_paths:
-                        full_path = os.path.join(self.root_dir, 'BBBC021', channel_path)
+                        full_path = os.path.join(self.root_dir, "BBBC021", channel_path)
                         if os.path.exists(full_path):
                             valid_channel_paths.append(full_path)
                         else:
@@ -447,8 +478,8 @@ class BBBC021xBray(Dataset):
                     channel_paths = row[0]
                     dataset = row[1]
                     target = row[2]
-                    
-                    full_path = os.path.join(self.root_dir, 'Bray', channel_paths)
+
+                    full_path = os.path.join(self.root_dir, "Bray", channel_paths)
                     if os.path.exists(full_path):
                         file_list.append((full_path, dataset, target))
                     else:
@@ -456,11 +487,13 @@ class BBBC021xBray(Dataset):
 
         return file_list
 
+
 # ========================================================== ClASSIFICATION Datasets ========================================================== #
 
 ########
 # CELL #
 ########
+
 
 class BloodMNIST(Dataset):
     """
@@ -470,6 +503,7 @@ class BloodMNIST(Dataset):
     It is labelled as a multi-class problem, with 8 classes in total.
     License CC BY 4.0
     """
+
     img_channels = 3
     is_multiclass = True
     task = "classification"
@@ -483,11 +517,13 @@ class BloodMNIST(Dataset):
         5: "monocyte",
         6: "neutrophil",
         7: "platelet",
-        }
+    }
     n_classes = len(int_to_labels)
     labels_to_int = {val: key for key, val in int_to_labels.items()}
 
-    def __init__(self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0):
+    def __init__(
+        self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0
+    ):
         self.root_dir = root_dir
         self.train = train
         self.transform = transform
@@ -498,22 +534,30 @@ class BloodMNIST(Dataset):
             if sample_ratio is not None and not 0 < sample_ratio <= 1:
                 raise ValueError("Sample ratio must be between 0 and 1")
 
-            file_list_name = f'train_BloodMNIST_{self.sample_ratio}.npz'
+            file_list_name = f"train_BloodMNIST_{self.sample_ratio}.npz"
             self.file_list_path = os.path.join(self.root_dir, file_list_name)
             print(self.file_list_path)
 
-            if os.path.exists(self.file_list_path) and os.path.isfile(self.file_list_path):
+            if os.path.exists(self.file_list_path) and os.path.isfile(
+                self.file_list_path
+            ):
                 # If the file list exists, load it
-                print(f"Train file for ratio {sample_ratio} already exists, loading file list")
+                print(
+                    f"Train file for ratio {sample_ratio} already exists, loading file list"
+                )
                 self.file_list = self._load_file_list()
             else:
                 # If the file list does not exist, generate it
-                print(f"Train file for ratio {sample_ratio} does not exist, generating file list")
+                print(
+                    f"Train file for ratio {sample_ratio} does not exist, generating file list"
+                )
                 self.file_list = self._collect_files()
                 if sample_ratio:
-                    self.file_list = random.sample(self.file_list, int(len(self.file_list) * sample_ratio))
+                    self.file_list = random.sample(
+                        self.file_list, int(len(self.file_list) * sample_ratio)
+                    )
                 self._save_file_list()
-        
+
         else:
             self.file_list = self._collect_files()
 
@@ -525,7 +569,7 @@ class BloodMNIST(Dataset):
 
         image_id = tup[0]
         label = tup[1]
-    
+
         image = Image.fromarray(image_id)
 
         if self.transform is not None:
@@ -538,12 +582,19 @@ class BloodMNIST(Dataset):
 
     def _load_file_list(self):
         with np.load(self.file_list_path) as data:
-            file_list = [(data['images'][i], data['labels'][i]) for i in range(data['images'].shape[0])]
+            file_list = [
+                (data["images"][i], data["labels"][i])
+                for i in range(data["images"].shape[0])
+            ]
         return file_list
 
     def _save_file_list(self):
-        images, labels = zip(*self.file_list)  # Unpack the file list into images and labels
-        np.savez_compressed(self.file_list_path, images=np.array(images), labels=np.array(labels))
+        images, labels = zip(
+            *self.file_list
+        )  # Unpack the file list into images and labels
+        np.savez_compressed(
+            self.file_list_path, images=np.array(images), labels=np.array(labels)
+        )
 
     def _collect_files(self):
         data = np.load(os.path.join(self.root_dir, "bloodmnist.npz"))
@@ -559,9 +610,11 @@ class BloodMNIST(Dataset):
 
         return data_list
 
-class BBBC021(Dataset):
 
-    def __init__(self, root_dir: str, train:bool = True, transform: Optional[Callable] = None):
+class BBBC021(Dataset):
+    def __init__(
+        self, root_dir: str, train: bool = True, transform: Optional[Callable] = None
+    ):
         self.train = train
         self.transform = transform
         self.root_dir = Path(root_dir)
@@ -580,7 +633,9 @@ class BBBC021(Dataset):
 
         image_channels = []
         for img_path in imgs_paths:
-            channel_array = np.array(imread(img_path))[:, :, np.newaxis]  # Add a new axis to make it 3-dimensional
+            channel_array = np.array(imread(img_path))[
+                :, :, np.newaxis
+            ]  # Add a new axis to make it 3-dimensional
             image_channels.append(channel_array)
 
         image = np.concatenate(image_channels, axis=2).astype(np.float32)
@@ -607,25 +662,29 @@ class BBBC021(Dataset):
         img_indices (np.ndarray): vector of the absolute image indices of selected subset of BBBC021
         """
         data = np.load(self.root_dir, allow_pickle=True)
-        img_paths = data['img_paths']
-        labels = data['labels']
+        img_paths = data["img_paths"]
+        labels = data["labels"]
         dataset_dir = os.path.dirname(self.root_dir)
 
         # Group img_paths 3 by 3
         full_img_paths = [os.path.join(dataset_dir, img_path) for img_path in img_paths]
-        grouped_img_paths = [full_img_paths[i:i+3] for i in range(0, len(full_img_paths), 3)]
+        grouped_img_paths = [
+            full_img_paths[i : i + 3] for i in range(0, len(full_img_paths), 3)
+        ]
 
         # Group labels 3 by 3
         labels = list(labels)
-        grouped_labels = [labels[i:i+3] for i in range(0, len(labels), 3)]
+        grouped_labels = [labels[i : i + 3] for i in range(0, len(labels), 3)]
 
         # Group concentrations 3 by 3
-        concentrations = data['concentrations']
-        grouped_concentrations = [concentrations[i:i+3] for i in range(0, len(concentrations), 3)]
+        concentrations = data["concentrations"]
+        grouped_concentrations = [
+            concentrations[i : i + 3] for i in range(0, len(concentrations), 3)
+        ]
 
         # Group compounds 3 by 3
-        compounds = data['compounds']
-        grouped_compounds = [compounds[i:i+3] for i in range(0, len(compounds), 3)]
+        compounds = data["compounds"]
+        grouped_compounds = [compounds[i : i + 3] for i in range(0, len(compounds), 3)]
 
         # Modify data
         self.img_paths = grouped_img_paths
@@ -653,19 +712,20 @@ class BBBC021(Dataset):
             concentrations.append(self.concentrations[index][0])
         return concentrations
 
-    def get_batches(self, indices, level='plate'):
+    def get_batches(self, indices, level="plate"):
         # Retrieve batch of each image
         batches = []
         for grouped_img_path in self.img_paths:
-            batches.append(grouped_img_path[0].split('BBBC021/')[1].split('/')[0])
-        if level=='week':
-            batches = [batch.split('_')[0] for batch in batches]
+            batches.append(grouped_img_path[0].split("BBBC021/")[1].split("/")[0])
+        if level == "week":
+            batches = [batch.split("_")[0] for batch in batches]
         batches = np.array(batches)
         subset_batches = []
         for index in indices:
             subset_batches.append(batches[index])
         subset_batches = np.array(subset_batches)
         return subset_batches
+
 
 class BBBC048(Dataset):
     """
@@ -675,6 +735,7 @@ class BBBC048(Dataset):
     This dataset contains 32,266 single cell images of asynchronously growing Jurkat cells that were captured with the ImageStream platform.
     The cells were fixed and stained with PI (propidium iodide) to quantify DNA content and a MPM2 (mitotic protein monoclonal #2) antibody to identify mitotic cells.
     """
+
     img_channels = 3
     is_multiclass = True
     task = "classification"
@@ -687,11 +748,13 @@ class BBBC048(Dataset):
         4: "G1",
         5: "G2",
         6: "S",
-        }
+    }
     n_classes = len(int_to_labels)
     labels_to_int = {val: key for key, val in int_to_labels.items()}
 
-    def __init__(self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0):
+    def __init__(
+        self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0
+    ):
         self.root_dir = root_dir
         self.train = train
         self.transform = transform
@@ -703,22 +766,30 @@ class BBBC048(Dataset):
             if sample_ratio is not None and not 0 < sample_ratio <= 1:
                 raise ValueError("Sample ratio must be between 0 and 1")
 
-            file_list_name = f'train_BBBC048_{self.sample_ratio}.txt'
+            file_list_name = f"train_BBBC048_{self.sample_ratio}.txt"
             self.file_list_path = os.path.join(self.root_dir, file_list_name)
             print(self.file_list_path)
 
-            if os.path.exists(self.file_list_path) and os.path.isfile(self.file_list_path):
+            if os.path.exists(self.file_list_path) and os.path.isfile(
+                self.file_list_path
+            ):
                 # If the file list exists, load it
-                print(f"Train file for ratio {sample_ratio} already exists, loading file list")
+                print(
+                    f"Train file for ratio {sample_ratio} already exists, loading file list"
+                )
                 self.file_list = self._load_file_list()
             else:
                 # If the file list does not exist, generate it
-                print(f"Train file for ratio {sample_ratio} does not exist, generating file list")
+                print(
+                    f"Train file for ratio {sample_ratio} does not exist, generating file list"
+                )
                 self.file_list = self._collect_files()
                 if sample_ratio:
-                    self.file_list = random.sample(self.file_list, int(len(self.file_list) * sample_ratio))
+                    self.file_list = random.sample(
+                        self.file_list, int(len(self.file_list) * sample_ratio)
+                    )
                 self._save_file_list()
-        
+
         else:
             self.file_list = self._collect_files()
 
@@ -726,7 +797,6 @@ class BBBC048(Dataset):
             random.shuffle(self.file_list)
 
     def __getitem__(self, index):
-
         tup = self.file_list[index]
 
         # parse the tuple
@@ -742,7 +812,9 @@ class BBBC048(Dataset):
         image_channels = []
         for file_path in file_paths:
             image = Image.open(file_path)
-            channel_array = np.array(image)[:, :, np.newaxis]  # Add a new axis to make it 3-dimensional
+            channel_array = np.array(image)[
+                :, :, np.newaxis
+            ]  # Add a new axis to make it 3-dimensional
             image_channels.append(channel_array)
 
         image_array = np.concatenate(image_channels, axis=2)
@@ -757,21 +829,21 @@ class BBBC048(Dataset):
         return len(self.file_list)
 
     def _load_file_list(self):
-        with open(self.file_list_path, 'r') as file:
+        with open(self.file_list_path, "r") as file:
             # This will create a list of lists, where each sub-list contains the elements
             # of a line as separate strings.
             file_list = []
             for line in file:
                 # Split by comma, but we want to keep the curly braces part as one element
-                parts = line.strip().split(',')
+                parts = line.strip().split(",")
                 # The first two elements are kept as they are, the rest is joined back
                 elements = parts[:2]
-                elements.append(','.join(parts[2:]))
+                elements.append(",".join(parts[2:]))
                 file_list.append(elements)
         return file_list
 
     def _save_file_list(self):
-        with open(self.file_list_path, 'w') as file:
+        with open(self.file_list_path, "w") as file:
             for image_id, target, channel_paths in self.file_list:
                 file.write(f"{image_id},{target},{channel_paths}\n")
 
@@ -779,11 +851,11 @@ class BBBC048(Dataset):
         file_list = []
 
         if self.train:
-            self.csv_file = os.path.join(self.root_dir, 'train.csv')
+            self.csv_file = os.path.join(self.root_dir, "train.csv")
         else:
-            self.csv_file = os.path.join(self.root_dir, 'test.csv')
+            self.csv_file = os.path.join(self.root_dir, "test.csv")
 
-        with open(self.csv_file, 'r') as file:
+        with open(self.csv_file, "r") as file:
             reader = csv.reader(file)
             for row in reader:
                 image_id = row[0]
@@ -794,10 +866,14 @@ class BBBC048(Dataset):
                     channel_paths = eval(channel_paths)
                 except (NameError, SyntaxError):
                     pass
-                channel_paths = [os.path.join(self.root_dir,channel_path)for channel_path in channel_paths]
+                channel_paths = [
+                    os.path.join(self.root_dir, channel_path)
+                    for channel_path in channel_paths
+                ]
                 file_list.append((image_id, target, channel_paths))
 
         return file_list
+
 
 class CyclOPS(Dataset):
     img_channels = 2
@@ -813,7 +889,7 @@ class CyclOPS(Dataset):
         5: "ENDOSOME",
         6: "ER",
         7: "GOLGI",
-        8: "MITOCHONDRIA", 
+        8: "MITOCHONDRIA",
         9: "NUCLEARPERIPHERY",
         10: "NUCLEI",
         11: "NUCLEOLUS",
@@ -822,11 +898,13 @@ class CyclOPS(Dataset):
         14: "SPINDLEPOLE",
         15: "VACUOLARMEMBRANE",
         16: "VACUOLE",
-        }
+    }
     n_classes = len(int_to_labels)
     labels_to_int = {val: key for key, val in int_to_labels.items()}
 
-    def __init__(self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0):
+    def __init__(
+        self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0
+    ):
         self.root_dir = root_dir
         self.train = train
         self.transform = transform
@@ -837,22 +915,30 @@ class CyclOPS(Dataset):
             if sample_ratio is not None and not 0 < sample_ratio <= 1:
                 raise ValueError("Sample ratio must be between 0 and 1")
 
-            file_list_name = f'train_CyclOPS_{self.sample_ratio}.txt'
+            file_list_name = f"train_CyclOPS_{self.sample_ratio}.txt"
             self.file_list_path = os.path.join(self.root_dir, file_list_name)
             print(self.file_list_path)
 
-            if os.path.exists(self.file_list_path) and os.path.isfile(self.file_list_path):
+            if os.path.exists(self.file_list_path) and os.path.isfile(
+                self.file_list_path
+            ):
                 # If the file list exists, load it
-                print(f"Train file for ratio {sample_ratio} already exists, loading file list")
+                print(
+                    f"Train file for ratio {sample_ratio} already exists, loading file list"
+                )
                 self.file_list = self._load_file_list()
             else:
                 # If the file list does not exist, generate it
-                print(f"Train file for ratio {sample_ratio} does not exist, generating file list")
+                print(
+                    f"Train file for ratio {sample_ratio} does not exist, generating file list"
+                )
                 self.file_list = self._collect_files()
                 if sample_ratio:
-                    self.file_list = random.sample(self.file_list, int(len(self.file_list) * sample_ratio))
+                    self.file_list = random.sample(
+                        self.file_list, int(len(self.file_list) * sample_ratio)
+                    )
                 self._save_file_list()
-        
+
         else:
             self.file_list = self._collect_files()
 
@@ -868,7 +954,9 @@ class CyclOPS(Dataset):
         channel_names = tup[2]
 
         # Collect the file path for the given image_id
-        file_path = os.path.join(self.root_dir, class_folder, f"{class_folder}_{image_id}.tif")
+        file_path = os.path.join(
+            self.root_dir, class_folder, f"{class_folder}_{image_id}.tif"
+        )
 
         # Read the multi-channel image using PIL (Pillow)
         image_channels = []
@@ -883,7 +971,9 @@ class CyclOPS(Dataset):
             channel_file_path = file_path.replace(".tif", f"_{channel_name}.tif")
             image = Image.open(channel_file_path)
             image = np.clip(image, 0, 255).astype(np.uint8)
-            channel_array = np.array(image)[:, :, np.newaxis]  # Add a new axis to make it 3-dimensional
+            channel_array = np.array(image)[
+                :, :, np.newaxis
+            ]  # Add a new axis to make it 3-dimensional
             image_channels.append(channel_array)
 
         image_array = np.concatenate(image_channels, axis=2)
@@ -905,21 +995,21 @@ class CyclOPS(Dataset):
         return len(self.file_list)
 
     def _load_file_list(self):
-        with open(self.file_list_path, 'r') as file:
+        with open(self.file_list_path, "r") as file:
             # This will create a list of lists, where each sub-list contains the elements
             # of a line as separate strings.
             file_list = []
             for line in file:
                 # Split by comma, but we want to keep the curly braces part as one element
-                parts = line.strip().split(',')
+                parts = line.strip().split(",")
                 # The first two elements are kept as they are, the rest is joined back
                 elements = parts[:2]
-                elements.append(','.join(parts[2:]))
+                elements.append(",".join(parts[2:]))
                 file_list.append(elements)
         return file_list
 
     def _save_file_list(self):
-        with open(self.file_list_path, 'w') as file:
+        with open(self.file_list_path, "w") as file:
             for class_folder, image_id, channel_names in self.file_list:
                 file.write(f"{class_folder},{image_id},{channel_names}\n")
 
@@ -927,11 +1017,11 @@ class CyclOPS(Dataset):
         file_list = []
 
         if self.train:
-            self.csv_file = os.path.join(self.root_dir, 'train.csv')
+            self.csv_file = os.path.join(self.root_dir, "train.csv")
         else:
-            self.csv_file = os.path.join(self.root_dir, 'val.csv')
+            self.csv_file = os.path.join(self.root_dir, "val.csv")
 
-        with open(self.csv_file, 'r') as file:
+        with open(self.csv_file, "r") as file:
             reader = csv.reader(file)
             for row in reader:
                 class_folder = row[0]
@@ -945,6 +1035,7 @@ class CyclOPS(Dataset):
 ##########
 # TISSUE #
 ##########
+
 
 class TissueMNIST(Dataset):
     """
@@ -960,8 +1051,8 @@ class TissueMNIST(Dataset):
     img_channels = 1
     is_multiclass = True
     task = "classification"
-    mean = (0.415, 0.221, 0.073) # TO BE CHANGED
-    std = (0.275, 0.150, 0.081) # TO BE CHANGED
+    mean = (0.415, 0.221, 0.073)  # TO BE CHANGED
+    std = (0.275, 0.150, 0.081)  # TO BE CHANGED
     images_format = ".npz"
     int_to_labels = {
         0: "Collecting Duct, Connecting Tubule",
@@ -978,7 +1069,9 @@ class TissueMNIST(Dataset):
     n_classes = len(int_to_labels)
     labels_to_int = {val: key for key, val in int_to_labels.items()}
 
-    def __init__(self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0):
+    def __init__(
+        self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0
+    ):
         self.root_dir = root_dir
         self.train = train
         self.transform = transform
@@ -989,20 +1082,28 @@ class TissueMNIST(Dataset):
             if sample_ratio is not None and not 0 < sample_ratio <= 1:
                 raise ValueError("Sample ratio must be between 0 and 1")
 
-            file_list_name = f'train_TissueMNIST_{self.sample_ratio}.txt'
+            file_list_name = f"train_TissueMNIST_{self.sample_ratio}.txt"
             self.file_list_path = os.path.join(self.root_dir, file_list_name)
             print(self.file_list_path)
 
-            if os.path.exists(self.file_list_path) and os.path.isfile(self.file_list_path):
+            if os.path.exists(self.file_list_path) and os.path.isfile(
+                self.file_list_path
+            ):
                 # If the file list exists, load it
-                print(f"Train file for ratio {sample_ratio} already exists, loading file list")
+                print(
+                    f"Train file for ratio {sample_ratio} already exists, loading file list"
+                )
                 self.file_list = self._load_file_list()
             else:
                 # If the file list does not exist, generate it
-                print(f"Train file for ratio {sample_ratio} does not exist, generating file list")
+                print(
+                    f"Train file for ratio {sample_ratio} does not exist, generating file list"
+                )
                 self.file_list = self._collect_files()
                 if sample_ratio:
-                    self.file_list = random.sample(self.file_list, int(len(self.file_list) * sample_ratio))
+                    self.file_list = random.sample(
+                        self.file_list, int(len(self.file_list) * sample_ratio)
+                    )
                 self._save_file_list()
 
         else:
@@ -1015,7 +1116,7 @@ class TissueMNIST(Dataset):
         tup = self.file_list[index]
 
         image_id = tup[0]
-        label = tup[1] 
+        label = tup[1]
 
         image = Image.open(image_id)
         image_numpy = np.array(image)
@@ -1029,12 +1130,12 @@ class TissueMNIST(Dataset):
         return len(self.file_list)
 
     def _load_file_list(self):
-        with open(self.file_list_path, 'r') as file:
-            file_list = [tuple(line.strip().split(',')) for line in file.readlines()]
+        with open(self.file_list_path, "r") as file:
+            file_list = [tuple(line.strip().split(",")) for line in file.readlines()]
         return file_list
 
     def _save_file_list(self):
-        with open(self.file_list_path, 'w') as file:
+        with open(self.file_list_path, "w") as file:
             for img_numpy, label in self.file_list:
                 file.write(f"{img_numpy},{label}\n")
 
@@ -1052,7 +1153,9 @@ class TissueMNIST(Dataset):
 
         return data_list
 
+
 # ========================================================== REGRESSION Datasets ========================================================== #
+
 
 class Transloc(Dataset):
     """
@@ -1060,12 +1163,15 @@ class Transloc(Dataset):
     ------------
     #TODO
     """
+
     img_channels = 3
     is_multiclass = True
     task = "regression"
     images_format = ".png"
 
-    def __init__(self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0):
+    def __init__(
+        self, root_dir=None, train=True, transform=None, shuffle=False, sample_ratio=1.0
+    ):
         self.root_dir = root_dir
         self.train = train
         self.transform = transform
@@ -1075,22 +1181,30 @@ class Transloc(Dataset):
             if sample_ratio is not None and not 0 < sample_ratio <= 1:
                 raise ValueError("Sample ratio must be between 0 and 1")
 
-            file_list_name = f'train_Transloc_{self.sample_ratio}.txt'
+            file_list_name = f"train_Transloc_{self.sample_ratio}.txt"
             self.file_list_path = os.path.join(self.root_dir, file_list_name)
             print(self.file_list_path)
 
-            if os.path.exists(self.file_list_path) and os.path.isfile(self.file_list_path):
+            if os.path.exists(self.file_list_path) and os.path.isfile(
+                self.file_list_path
+            ):
                 # If the file list exists, load it
-                print(f"Train file for ratio {sample_ratio} already exists, loading file list")
+                print(
+                    f"Train file for ratio {sample_ratio} already exists, loading file list"
+                )
                 self.file_list = self._load_file_list()
             else:
                 # If the file list does not exist, generate it
-                print(f"Train file for ratio {sample_ratio} does not exist, generating file list")
+                print(
+                    f"Train file for ratio {sample_ratio} does not exist, generating file list"
+                )
                 self.file_list = self._collect_files()
                 if sample_ratio:
-                    self.file_list = random.sample(self.file_list, int(len(self.file_list) * sample_ratio))
+                    self.file_list = random.sample(
+                        self.file_list, int(len(self.file_list) * sample_ratio)
+                    )
                 self._save_file_list()
-        
+
         else:
             self.file_list = self._collect_files()
 
@@ -1098,7 +1212,7 @@ class Transloc(Dataset):
             random.shuffle(self.file_list)
 
     def __getitem__(self, index):
-        tup  = self.file_list[index]
+        tup = self.file_list[index]
 
         # parse the tuple
         image_path = tup[0]
@@ -1116,12 +1230,12 @@ class Transloc(Dataset):
         return len(self.file_list)
 
     def _load_file_list(self):
-        with open(self.file_list_path, 'r') as file:
-            file_list = [tuple(line.strip().split(',')) for line in file.readlines()]
+        with open(self.file_list_path, "r") as file:
+            file_list = [tuple(line.strip().split(",")) for line in file.readlines()]
         return file_list
 
     def _save_file_list(self):
-        with open(self.file_list_path, 'w') as file:
+        with open(self.file_list_path, "w") as file:
             for image_path, target in self.file_list:
                 file.write(f"{image_path},{target}\n")
 
@@ -1129,22 +1243,27 @@ class Transloc(Dataset):
         file_list = []
 
         if self.train:
-            self.csv_file = os.path.join(self.root_dir, 'analyse_256x256', 'single_ratio_images_train.csv')
+            self.csv_file = os.path.join(
+                self.root_dir, "analyse_256x256", "single_ratio_images_train.csv"
+            )
         else:
-            self.csv_file = os.path.join(self.root_dir, 'analyse_256x256', 'single_ratio_images_val.csv')
+            self.csv_file = os.path.join(
+                self.root_dir, "analyse_256x256", "single_ratio_images_val.csv"
+            )
 
-        with open(self.csv_file, 'r') as file:
-            reader = csv.DictReader(file, delimiter=',')
+        with open(self.csv_file, "r") as file:
+            reader = csv.DictReader(file, delimiter=",")
             for row in reader:
-                category = row['cat']
-                image_id = row['image_name']
-                target = float(row['ratio'])
+                category = row["cat"]
+                image_id = row["image_name"]
+                target = float(row["ratio"])
 
                 # Add self.root_dir for each channel path
-                image_path = os.path.join(self.root_dir, '256x256', category, image_id)
+                image_path = os.path.join(self.root_dir, "256x256", category, image_id)
                 file_list.append((image_path, target))
 
         return file_list
+
 
 class MTBenchReg(Dataset):
     """
@@ -1152,6 +1271,7 @@ class MTBenchReg(Dataset):
     ------------
     #TODO
     """
+
     img_channels = 3
     is_multiclass = True
     task = "regression"
@@ -1161,7 +1281,7 @@ class MTBenchReg(Dataset):
         self.root_dir = root_dir
         self.train = train
         self.transform = transform
-    
+
         # No need for sample_ratio here since dataset is already in low data regime mode
         self.file_list = self._collect_files()
 
@@ -1176,14 +1296,18 @@ class MTBenchReg(Dataset):
         target = float(tup[1])
 
         # Ensure channels_paths is a list of strings
-        if not isinstance(channels_paths, list) or not all(isinstance(path, str) for path in channels_paths):
-            raise ValueError(f"Channel paths must be a list of strings. Received: {channels_paths}")
+        if not isinstance(channels_paths, list) or not all(
+            isinstance(path, str) for path in channels_paths
+        ):
+            raise ValueError(
+                f"Channel paths must be a list of strings. Received: {channels_paths}"
+            )
 
         image_channels = []
 
         for channel_path in channels_paths:
             # Open image and convert to a consistent format (e.g., grayscale)
-            image = Image.open(channel_path).convert('L')
+            image = Image.open(channel_path).convert("L")
             image_array = np.array(image)
 
             # Normalize between 0 and 255
@@ -1194,7 +1318,9 @@ class MTBenchReg(Dataset):
             else:
                 normalized_image = image_array
 
-            normalized_image = normalized_image.astype(np.uint8)  # Ensure data type is uint8
+            normalized_image = normalized_image.astype(
+                np.uint8
+            )  # Ensure data type is uint8
             normalized_image = normalized_image[:, :, np.newaxis]  # Add a new axis
             image_channels.append(normalized_image)
 
@@ -1215,125 +1341,56 @@ class MTBenchReg(Dataset):
         file_list = []
 
         if self.train:
-            self.csv_file = os.path.join(self.root_dir,'regress','MTB-MD-Regression_train.csv')
+            self.csv_file = os.path.join(
+                self.root_dir, "regress", "MTB-MD-Regression_train.csv"
+            )
         else:
-            self.csv_file = os.path.join(self.root_dir,'regress','MTB-MD-Regression_val.csv')
+            self.csv_file = os.path.join(
+                self.root_dir, "regress", "MTB-MD-Regression_val.csv"
+            )
 
-        with open(self.csv_file, 'r') as file:
-            reader = csv.DictReader(file, delimiter=',')
+        with open(self.csv_file, "r") as file:
+            reader = csv.DictReader(file, delimiter=",")
             for row in reader:
                 # instanciate list of channels paths
                 channels_paths = []
 
                 # take last two elements of the path
-                channel_dapi = row['Dapi'].split('/')[-2:]
-                channel_egfp = row['EGFP'].split('/')[-2:]
-                channel_cy3 = row['Cy3'].split('/')[-2:]
-                target = float(row['r² (2)'])
+                channel_dapi = row["Dapi"].split("/")[-2:]
+                channel_egfp = row["EGFP"].split("/")[-2:]
+                channel_cy3 = row["Cy3"].split("/")[-2:]
+                target = float(row["r² (2)"])
 
                 # add each channel path in list
 
                 # check if paths exist
-                if os.path.exists(os.path.join(self.root_dir,'regress', *channel_dapi)) and os.path.exists(os.path.join(self.root_dir,'regress', *channel_egfp)) and os.path.exists(os.path.join(self.root_dir,'regress', *channel_cy3)):
-                    channels_paths.append(os.path.join(self.root_dir,'regress', *channel_dapi))
-                    channels_paths.append(os.path.join(self.root_dir,'regress', *channel_egfp))
-                    channels_paths.append(os.path.join(self.root_dir,'regress', *channel_cy3))
+                if (
+                    os.path.exists(
+                        os.path.join(self.root_dir, "regress", *channel_dapi)
+                    )
+                    and os.path.exists(
+                        os.path.join(self.root_dir, "regress", *channel_egfp)
+                    )
+                    and os.path.exists(
+                        os.path.join(self.root_dir, "regress", *channel_cy3)
+                    )
+                ):
+                    channels_paths.append(
+                        os.path.join(self.root_dir, "regress", *channel_dapi)
+                    )
+                    channels_paths.append(
+                        os.path.join(self.root_dir, "regress", *channel_egfp)
+                    )
+                    channels_paths.append(
+                        os.path.join(self.root_dir, "regress", *channel_cy3)
+                    )
 
                     # add tuple to file_list
                     file_list.append((channels_paths, target))
 
                 else:
-                    print(f"Path does not exist for {row['Dapi']} or {row['EGFP']} or {row['Cy3']}")
+                    print(
+                        f"Path does not exist for {row['Dapi']} or {row['EGFP']} or {row['Cy3']}"
+                    )
 
         return file_list
-    
-
-# ========================================================== DETECTION Datasets ========================================================== #
-
-########
-# CELL #
-########
-
-class BloodCellDetection(Dataset):
-    """
-
-    """
-    img_channels = 1
-    is_multiclass = True
-    task = "classification"
-    mean = (0.415, 0.221, 0.073) # TO BE CHANGED
-    std = (0.275, 0.150, 0.081) # TO BE CHANGED
-    images_format = ".npz"
-    int_to_labels = {
-        0: "Collecting Duct, Connecting Tubule",
-        1: "Distal Convoluted Tubule",
-        2: "Glomerular endothelial cells",
-        3: "Interstitial endothelial cells",
-        4: "Leukocytes",
-        5: "Podocytes",
-        6: "Proximal Tubule Segments",
-        7: "Thick Ascending Limb",
-    }
-    target_metric = "roc_auc"
-    knn_nhood = 200
-    n_classes = len(int_to_labels)
-    labels_to_int = {val: key for key, val in int_to_labels.items()}
-
-    def __init__(self, root_dir=None, train=True, transform=None, shuffle=False):
-        self.root_dir = root_dir
-        self.train = train
-        self.transform = transform
-        self.file_list = self.get_data_as_list()
-
-        if shuffle:
-            random.shuffle(self.file_list)
-
-    def __getitem__(self, index):
-        image_id, label = self.file_list[index]
-
-        image = Image.open(image_id)
-        image_numpy = np.array(image)
-
-        if self.transform is not None:
-            img = Image.fromarray(image_numpy)
-            img = self.transform(img)
-
-        return img, label
-
-    def __len__(self):
-        return len(self.file_list)
-
-    def get_data_as_list(self):
-        data = load_dataset("keremberke/blood-cell-object-detection", name="full")
-
-        if self.train:
-            images = data["train_images"]
-            labels = np.squeeze(data["train_labels"])
-        else:
-            images = data["test_images"]
-            labels = np.squeeze(data["test_labels"])
-
-        data_list = [(img_numpy, label) for img_numpy, label in zip(images, labels)]
-
-        return data_list
-
-class ZeroCostDL4Mic(Dataset):
-    pass
-
-# ========================================================== SEGMENTATION Datasets ========================================================== #
-
-########
-# CELL #
-########
-
-class LIVECell(Dataset):
-    pass
-
-class Cellpose(Dataset):
-    pass
-
-class BBBC038(Dataset):
-    pass
-
-class CellImageLibrary(Dataset):
-    pass

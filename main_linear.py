@@ -18,7 +18,6 @@
 # DEALINGS IN THE SOFTWARE.
 
 import inspect
-import logging
 import os
 import signal
 
@@ -42,7 +41,7 @@ from src.methods.linear import LinearModel
 from src.utils.auto_resumer import AutoResumer
 from src.utils.checkpointer import Checkpointer
 from src.utils.slurm_logger import SLURMLogger
-from src.utils.misc import make_contiguous, omegaconf_select
+from src.utils.misc import make_contiguous
 from src.data.channels_strategies import modify_first_layer
 
 try:
@@ -71,15 +70,6 @@ def main(cfg: DictConfig):
     OmegaConf.set_struct(cfg, False)
     cfg = parse_cfg(cfg)
 
-    # initialize logging
-    logging_level = logging.INFO
-    logging.basicConfig(
-        level=logging_level,
-        filename=f"./logs/{cfg.name}.log",
-        filemode="w",
-        format="%(name)s - %(levelname)s - %(message)s",
-    )
-
     seed_everything(cfg.seed)
 
     # initialize backbone
@@ -98,9 +88,14 @@ def main(cfg: DictConfig):
         backbone = modify_first_layer(backbone=backbone, cfg=cfg, pretrained=pretrained)
 
     # load custom pretrained weights for OneChannel or MultiChannels
-    elif cfg.channels_strategy == "one_channel" or cfg.channels_strategy == "multi_channels":
+    elif (
+        cfg.channels_strategy == "one_channel"
+        or cfg.channels_strategy == "multi_channels"
+    ):
         assert (
-            ckpt_path.endswith(".ckpt") or ckpt_path.endswith(".pth") or ckpt_path.endswith(".pt")
+            ckpt_path.endswith(".ckpt")
+            or ckpt_path.endswith(".pth")
+            or ckpt_path.endswith(".pt")
         ), "If not loading pretrained imagenet weights on backbone, pretrained_feature_extractor must be a .ckpt or .pth file"
         pretrained = False
         backbone = backbone_model(method=cfg.pretrain_method, **cfg.backbone.kwargs)
@@ -109,18 +104,17 @@ def main(cfg: DictConfig):
         for k in list(state.keys()):
             if "encoder" in k:
                 state[k.replace("encoder", "backbone")] = state[k]
-                logging.warn(
-                    "You are using an older checkpoint. Use a new one as some issues might arrise."
-                )
             if "backbone" in k:
                 state[k.replace("backbone.", "")] = state[k]
             del state[k]
         backbone.load_state_dict(state, strict=False)
-    
+
     # load custom pretrained weights for Standard architecture (trained on 3-Channels/RGB images)
     else:
         assert (
-            ckpt_path.endswith(".ckpt") or ckpt_path.endswith(".pth") or ckpt_path.endswith(".pt")
+            ckpt_path.endswith(".ckpt")
+            or ckpt_path.endswith(".pth")
+            or ckpt_path.endswith(".pt")
         ), "If not loading pretrained imagenet weights on backbone, pretrained_feature_extractor must be a .ckpt or .pth file"
         pretrained = False
         backbone = backbone_model(method=cfg.pretrain_method, **cfg.backbone.kwargs)
@@ -128,22 +122,16 @@ def main(cfg: DictConfig):
         for k in list(state.keys()):
             if "encoder" in k:
                 state[k.replace("encoder", "backbone")] = state[k]
-                logging.warn(
-                    "You are using an older checkpoint. Use a new one as some issues might arrise."
-                )
             if "backbone" in k:
                 state[k.replace("backbone.", "")] = state[k]
             del state[k]
         backbone.load_state_dict(state, strict=False)
         backbone = modify_first_layer(backbone=backbone, cfg=cfg, pretrained=pretrained)
-
-    logging.info(f"Loaded {ckpt_path}")
 
     # check if mixup or cutmix is enabled
     mixup_func = None
     mixup_active = cfg.mixup > 0 or cfg.cutmix > 0
     if mixup_active:
-        logging.info("Mixup activated")
         mixup_func = Mixup(
             mixup_alpha=cfg.mixup,
             cutmix_alpha=cfg.cutmix,
@@ -186,13 +174,11 @@ def main(cfg: DictConfig):
         num_workers=cfg.data.num_workers,
         auto_augment=cfg.auto_augment,
         channel_strategy=cfg.channels_strategy,
-        sample_ratio=cfg.data.sample_ratio
+        sample_ratio=cfg.data.sample_ratio,
     )
 
     if cfg.data.format == "dali":
-        assert (
-            _dali_avaliable
-        ), "Dali is not currently avaiable, please install it first with pip3 install .[dali]."
+        assert _dali_avaliable, "Dali is not currently avaiable, please install it first with pip3 install .[dali]."
 
         assert not cfg.auto_augment, "Auto augmentation is not supported with Dali."
 
@@ -212,7 +198,11 @@ def main(cfg: DictConfig):
     # 1.7 will deprecate resume_from_checkpoint, but for the moment
     # the argument is the same, but we need to pass it as ckpt_path to trainer.fit
     ckpt_path, wandb_run_id = None, None
-    if cfg.auto_resume.enabled and cfg.resume_from_checkpoint is None and not cfg.slurm.enabled:
+    if (
+        cfg.auto_resume.enabled
+        and cfg.resume_from_checkpoint is None
+        and not cfg.slurm.enabled
+    ):
         auto_resumer = AutoResumer(
             checkpoint_dir=os.path.join(cfg.checkpoint.dir, "linear"),
             max_hours=cfg.auto_resume.max_hours,
@@ -256,7 +246,9 @@ def main(cfg: DictConfig):
 
         else:
             logger = SLURMLogger(
-                save_dir=os.path.join(cfg.checkpoint.dir, "linear", str(cfg.slurm.job_id)),
+                save_dir=os.path.join(
+                    cfg.checkpoint.dir, "linear", str(cfg.slurm.job_id)
+                ),
                 name=cfg.name,
                 project=cfg.wandb.project,
                 entity=cfg.wandb.entity,
@@ -276,14 +268,20 @@ def main(cfg: DictConfig):
     trainer_kwargs = OmegaConf.to_container(cfg)
     # we only want to pass in valid Trainer args, the rest may be user specific
     valid_kwargs = inspect.signature(Trainer.__init__).parameters
-    trainer_kwargs = {name: trainer_kwargs[name] for name in valid_kwargs if name in trainer_kwargs}
+    trainer_kwargs = {
+        name: trainer_kwargs[name] for name in valid_kwargs if name in trainer_kwargs
+    }
     trainer_kwargs.update(
         {
             "logger": logger if cfg.wandb.enabled else None,
             "callbacks": callbacks,
             "enable_checkpointing": False,
-            "strategy": DDPStrategy(find_unused_parameters=False) if cfg.strategy == "ddp" else cfg.strategy,
-            "plugins": [SLURMEnvironment(requeue_signal=signal.SIGUSR1)] if cfg.slurm.enabled else None,
+            "strategy": DDPStrategy(find_unused_parameters=False)
+            if cfg.strategy == "ddp"
+            else cfg.strategy,
+            "plugins": [SLURMEnvironment(requeue_signal=signal.SIGUSR1)]
+            if cfg.slurm.enabled
+            else None,
         }
     )
     trainer = Trainer(**trainer_kwargs)
@@ -302,7 +300,7 @@ def main(cfg: DictConfig):
         trainer.fit_loop = WorkaroundFitLoop(
             trainer.fit_loop.min_epochs, trainer.fit_loop.max_epochs
         )
-    except:
+    except ImportError:
         pass
 
     # Start training without Submitit
@@ -314,12 +312,12 @@ def main(cfg: DictConfig):
     print("TRAINING FINISHED")
 
     # Workaround to log metrics to wandb at the end of a full run when using slurm autoresubmit
-    if isinstance(logger,SLURMLogger) and cfg.slurm.enabled and _idr_torch_available:
+    if isinstance(logger, SLURMLogger) and cfg.slurm.enabled and _idr_torch_available:
         if idr_torch.rank == 0:
             run = wandb.init(**logger._wandb_init)
 
-            print("initialized WanDB, run name : ",logger._name)
-            print("WANDB Run id : ",run.id)
+            print("initialized WanDB, run name : ", logger._name)
+            print("WANDB Run id : ", run.id)
             print("logging to WANDB...")
 
             wandb.config.update(logger.hyperparams, allow_val_change=True)
@@ -328,17 +326,26 @@ def main(cfg: DictConfig):
             with open(logger._save_dir + "/training_logs.txt", "r") as f:
                 for line in f:
                     # convert line to dict
-                    wandb.log(eval(line)) #allows to delete duplicates if any in terms of epoch
+                    wandb.log(
+                        eval(line)
+                    )  # allows to delete duplicates if any in terms of epoch
 
             # Check if confusion matrix picture is available
             # check .png file begins wit val_confusion_matrix
             for file in os.listdir(os.getcwd()):
                 if file.startswith("val_confusion_matrix"):
                     # check if has the same id as the run
-                    if file.split('_')[3].split('.')[0] == os.environ["SLURM_JOB_ID"]:
-                        wandb.log({"val_confusion_matrix": wandb.Image(os.path.join(os.getcwd(), file))})
+                    if file.split("_")[3].split(".")[0] == os.environ["SLURM_JOB_ID"]:
+                        wandb.log(
+                            {
+                                "val_confusion_matrix": wandb.Image(
+                                    os.path.join(os.getcwd(), file)
+                                )
+                            }
+                        )
 
             wandb.finish()
+
 
 if __name__ == "__main__":
     main()

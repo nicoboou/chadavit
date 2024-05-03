@@ -1,14 +1,19 @@
 import os
 
 from argparse import Namespace
-from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Union
+from typing import Any, Dict, Mapping, Optional, Union
 
 import wandb
-from lightning_fabric.utilities.logger import _add_prefix, _convert_params, _flatten_dict, _sanitize_callable_params
+from lightning_fabric.utilities.logger import (
+    _add_prefix,
+    _convert_params,
+    _flatten_dict,
+    _sanitize_callable_params,
+)
 from lightning_fabric.utilities.types import _PATH
 from pytorch_lightning.loggers.logger import Logger
 from pytorch_lightning.utilities import rank_zero_only
+
 
 class SLURMLogger(Logger):
     """
@@ -70,7 +75,6 @@ class SLURMLogger(Logger):
         self._name = self._wandb_init.get("name")
         self._id = self._wandb_init.get("id")
 
-
     @property
     def name(self):
         return self.__class__.__name__
@@ -88,7 +92,9 @@ class SLURMLogger(Logger):
         self.hyperparams = params
 
     @rank_zero_only
-    def log_metrics(self, metrics: Mapping[str, float], step: Optional[int] = None) -> None:
+    def log_metrics(
+        self, metrics: Mapping[str, float], step: Optional[int] = None
+    ) -> None:
         assert rank_zero_only.rank == 0, "experiment tried to log from global_rank != 0"
 
         print("LOGGING METRICS")

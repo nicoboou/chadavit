@@ -17,8 +17,6 @@
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import logging
-
 from .vit import vit_ultra_tiny as default_vit_ultra_tiny
 from .vit import vit_tiny as default_vit_tiny
 from .vit import vit_small as default_vit_small
@@ -30,10 +28,7 @@ from .chada_vit import chada_vit as default_chada_vit
 
 def get_constructor(method, options, default):
     if str(method).lower() in options:
-        logging.warning(f"Using custom backbone for {method}")
         return options[method]
-
-    logging.warning(f"No custom backbone found for {method}, defaulting to default")
     return default
 
 def vit_ultra_tiny(method, *args, **kwargs):

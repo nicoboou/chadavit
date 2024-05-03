@@ -17,7 +17,6 @@
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import logging
 import math
 import os
 from typing import Dict, List, Optional, Tuple
@@ -143,10 +142,8 @@ def _no_grad_trunc_normal_(tensor, mean, std, a, b):
         return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
 
     if (mean < a - 2 * std) or (mean > b + 2 * std):
-        logging.warn(
-            "mean is more than 2 std from [a, b] in nn.init.trunc_normal_. "
-            "The distribution of values may be incorrect.",
-            stacklevel=2,
+        print(
+            "mean is more than 2 std from [a, b] in nn.init.trunc_normal_.The distribution of values may be incorrect."
         )
 
     with torch.no_grad():
@@ -272,7 +269,9 @@ def compute_dataset_size(
     size = None
 
     if dataset is not None:
-        size = DATASET_SIZES.get(dataset.lower(), {}).get("train" if train else "val", None)
+        size = DATASET_SIZES.get(dataset.lower(), {}).get(
+            "train" if train else "val", None
+        )
 
     if data_format == "h5":
         assert _h5_available
@@ -283,7 +282,8 @@ def compute_dataset_size(
             size = len(os.listdir(data_path))
         else:
             size = sum(
-                len(os.listdir(os.path.join(data_path, class_))) for class_ in os.listdir(data_path)
+                len(os.listdir(os.path.join(data_path, class_)))
+                for class_ in os.listdir(data_path)
             )
 
     if data_fraction != -1:
@@ -328,8 +328,12 @@ def generate_2d_sincos_pos_embed_from_grid(embed_dim, grid):
     assert embed_dim % 2 == 0
 
     # use half of dimensions to encode grid_h
-    emb_h = generate_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[0])  # (H*W, D/2)
-    emb_w = generate_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[1])  # (H*W, D/2)
+    emb_h = generate_1d_sincos_pos_embed_from_grid(
+        embed_dim // 2, grid[0]
+    )  # (H*W, D/2)
+    emb_w = generate_1d_sincos_pos_embed_from_grid(
+        embed_dim // 2, grid[1]
+    )  # (H*W, D/2)
 
     emb = np.concatenate([emb_h, emb_w], axis=1)  # (H*W, D)
     return emb
@@ -374,7 +378,9 @@ def param_groups_layer_decay(
 
     if hasattr(model, "group_matcher"):
         # FIXME interface needs more work
-        layer_map = group_parameters(model, model.group_matcher(coarse=False), reverse=True)
+        layer_map = group_parameters(
+            model, model.group_matcher(coarse=False), reverse=True
+        )
     else:
         # fallback
         layer_map = _layer_map(model)
@@ -455,39 +461,44 @@ def omegaconf_select(cfg, key, default=None):
         return None
     return value
 
+
 def imread(filename):
     ext = os.path.splitext(filename)[-1]
-    if ext== '.tif' or ext=='tiff':
+    if ext == ".tif" or ext == "tiff":
         img = tifffile.imread(filename)
         return img
     else:
         try:
-            img = cv2.imread(filename, -1)#cv2.LOAD_IMAGE_ANYDEPTH)
+            img = cv2.imread(filename, -1)  # cv2.LOAD_IMAGE_ANYDEPTH)
             if img.ndim > 2:
-                img = img[..., [2,1,0]]  # transfer to RGB mode
+                img = img[..., [2, 1, 0]]  # transfer to RGB mode
             return img
         except Exception as e:
-            print('ERROR: could not read file, %s'%e)
+            print("ERROR: could not read file, %s" % e)
             return None
 
-def check_chans(img_names, chan_names, task_name='Task'):
+
+def check_chans(img_names, chan_names, task_name="Task"):
     img_names = [os.path.basename(img_name) for img_name in img_names]
     nchan = len(chan_names)
-    pass_result_dict={True: 'True', False: 'False'}
+    pass_result_dict = {True: "True", False: "False"}
     pass_flag = True
     for chani, chan_name in enumerate(chan_names):
         img_namesi = img_names[chani::nchan]
-        check_flags = [chan_name.lower() in img_namei.lower() for img_namei in img_namesi]
+        check_flags = [
+            chan_name.lower() in img_namei.lower() for img_namei in img_namesi
+        ]
         pass_flag *= all(check_flags)
     # print(task_name+':', pass_flag)
     return pass_result_dict[pass_flag]
 
-def reshape_data(embeddings, c=1, mode='concat', kys=None):
+
+def reshape_data(embeddings, c=1, mode="concat", kys=None):
     embeddings = np.array(embeddings)
     d = embeddings.shape[1]
-    if mode == 'mean' or mode == 'add':
+    if mode == "mean" or mode == "add":
         embeddings = embeddings.reshape(-1, c, d).mean(axis=1)
-    elif mode == 'chans':
+    elif mode == "chans":
         embeddings = embeddings.reshape(-1, c, d).sum(axis=2)
     else:
         embeddings = embeddings.reshape(-1, c * d)
@@ -501,6 +512,7 @@ def reshape_data(embeddings, c=1, mode='concat', kys=None):
     else:
         return embeddings
 
+
 def _reshape_data(y, c=1):
     y = np.array(y)
     y = y.reshape(-1, c)
@@ -509,10 +521,11 @@ def _reshape_data(y, c=1):
     if c > 1:
         for i in range(1, c):
             flag *= np.any(y[..., 0] == y[..., i])
-    assert flag, 'Maybe there are some problems during extract embeddings'
+    assert flag, "Maybe there are some problems during extract embeddings"
 
     y = y[..., 0]
     return y
+
 
 def pop_nan_data(X, kys=None):
     if kys is None:
@@ -530,13 +543,14 @@ def pop_nan_data(X, kys=None):
             ys.append(yi)
         return X, ys
 
+
 def seed_everything_manual(seed: Optional[int] = None) -> int:
     """Function that sets seed for pseudo-random number generators in: pytorch, numpy, python.random
     If `None`, will select a random seed.
-    
+
     Args:
         seed: Optional integer seed for global random state.
-    
+
     Returns:
         The seed used.
     """

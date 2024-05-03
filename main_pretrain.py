@@ -18,7 +18,6 @@
 # DEALINGS IN THE SOFTWARE.
 
 import inspect
-import logging
 import os
 import signal
 
@@ -34,7 +33,9 @@ from pytorch_lightning.strategies.ddp import DDPStrategy
 from pytorch_lightning.plugins.environments import SLURMEnvironment
 
 from src.args.pretrain import parse_cfg
-from src.data.classification_dataloader import prepare_data as prepare_data_classification
+from src.data.classification_dataloader import (
+    prepare_data as prepare_data_classification,
+)
 from src.data.pretrain_dataloader import (
     FullTransformPipeline,
     FullTransformAlbumentationPipeline,
@@ -49,7 +50,6 @@ from src.utils.auto_resumer import AutoResumer
 from src.utils.checkpointer import Checkpointer
 from src.utils.slurm_logger import SLURMLogger
 from src.utils.misc import make_contiguous, omegaconf_select
-from src.data.channels_strategies import RandomDiscarder
 
 try:
     from src.utils.auto_umap import AutoUMAP
@@ -68,6 +68,7 @@ else:
 os.environ["WANDB__SERVICE_WAIT"] = "300"
 os.environ["_WANDB_STARTUP_DEBUG"] = "true"
 
+
 @hydra.main(version_base="1.2")
 def main(cfg: DictConfig):
     # hydra doesn't allow us to add new keys for "safety"
@@ -75,10 +76,6 @@ def main(cfg: DictConfig):
     # without making the user specify every single thing about the model
     OmegaConf.set_struct(cfg, False)
     cfg = parse_cfg(cfg)
-
-    # initialize logging
-    logging_level = logging.INFO
-    logging.basicConfig(level=logging_level, filename=f'./logs/{cfg.name}.log', filemode='w', format='%(name)s - %(levelname)s - %(message)s')
 
     seed_everything(cfg.seed)
 
@@ -106,14 +103,16 @@ def main(cfg: DictConfig):
             if cfg.mixed_channels:
                 pipelines.append(
                     NCropAlbumentationAugmentation(
-                        build_transform_pipeline(cfg.data.dataset, aug_cfg), aug_cfg.num_crops
+                        build_transform_pipeline(cfg.data.dataset, aug_cfg),
+                        aug_cfg.num_crops,
                     )
                 )
                 transform = FullTransformAlbumentationPipeline(pipelines)
             else:
                 pipelines.append(
                     NCropAugmentation(
-                        build_transform_pipeline(cfg.data.dataset, aug_cfg), aug_cfg.num_crops
+                        build_transform_pipeline(cfg.data.dataset, aug_cfg),
+                        aug_cfg.num_crops,
                     )
                 )
                 transform = FullTransformPipeline(pipelines)
@@ -131,11 +130,23 @@ def main(cfg: DictConfig):
             no_labels=cfg.data.no_labels,
             data_fraction=cfg.data.fraction,
             return_val_dataset=cfg.ssl_val_loss,
-            sample_ratio=cfg.data.sample_ratio
+            sample_ratio=cfg.data.sample_ratio,
         )
 
-        train_loader = prepare_dataloader(dataset=train_dataset, batch_size=cfg.optimizer.batch_size, num_workers=cfg.data.num_workers, channel_strategy=cfg.channels_strategy, shuffle=True)
-        val_loader = prepare_dataloader(dataset=val_dataset, batch_size=cfg.optimizer.batch_size, num_workers=cfg.data.num_workers, channel_strategy=cfg.channels_strategy, shuffle=False)
+        train_loader = prepare_dataloader(
+            dataset=train_dataset,
+            batch_size=cfg.optimizer.batch_size,
+            num_workers=cfg.data.num_workers,
+            channel_strategy=cfg.channels_strategy,
+            shuffle=True,
+        )
+        val_loader = prepare_dataloader(
+            dataset=val_dataset,
+            batch_size=cfg.optimizer.batch_size,
+            num_workers=cfg.data.num_workers,
+            channel_strategy=cfg.channels_strategy,
+            shuffle=False,
+        )
 
     # ------------------------ SSL Validation Loss DEACTIVATED ------------------------ #
 
@@ -150,7 +161,7 @@ def main(cfg: DictConfig):
             batch_size=cfg.optimizer.batch_size,
             num_workers=cfg.data.num_workers,
             channel_strategy=cfg.channels_strategy,
-            sample_ratio=cfg.data.sample_ratio
+            sample_ratio=cfg.data.sample_ratio,
         )
 
         # pretrain dataloader
@@ -159,14 +170,16 @@ def main(cfg: DictConfig):
             if cfg.mixed_channels:
                 pipelines.append(
                     NCropAlbumentationAugmentation(
-                        build_transform_pipeline(cfg.data.dataset, aug_cfg), aug_cfg.num_crops
+                        build_transform_pipeline(cfg.data.dataset, aug_cfg),
+                        aug_cfg.num_crops,
                     )
                 )
                 transform = FullTransformAlbumentationPipeline(pipelines)
             else:
                 pipelines.append(
                     NCropAugmentation(
-                        build_transform_pipeline(cfg.data.dataset, aug_cfg), aug_cfg.num_crops
+                        build_transform_pipeline(cfg.data.dataset, aug_cfg),
+                        aug_cfg.num_crops,
                     )
                 )
                 transform = FullTransformPipeline(pipelines)
@@ -184,16 +197,23 @@ def main(cfg: DictConfig):
             no_labels=cfg.data.no_labels,
             data_fraction=cfg.data.fraction,
             return_val_dataset=cfg.ssl_val_loss,
-            sample_ratio=cfg.data.sample_ratio
+            sample_ratio=cfg.data.sample_ratio,
         )
 
         train_loader = prepare_dataloader(
-            dataset=train_dataset, batch_size=cfg.optimizer.batch_size, num_workers=cfg.data.num_workers, channel_strategy=cfg.channels_strategy
+            dataset=train_dataset,
+            batch_size=cfg.optimizer.batch_size,
+            num_workers=cfg.data.num_workers,
+            channel_strategy=cfg.channels_strategy,
         )
 
     # AutoResumer
     ckpt_path, wandb_run_id = None, None
-    if cfg.auto_resume.enabled and cfg.resume_from_checkpoint is None and not cfg.slurm.enabled:
+    if (
+        cfg.auto_resume.enabled
+        and cfg.resume_from_checkpoint is None
+        and not cfg.slurm.enabled
+    ):
         auto_resumer = AutoResumer(
             checkpoint_dir=os.path.join(cfg.checkpoint.dir, cfg.method),
             max_hours=cfg.auto_resume.max_hours,
@@ -246,10 +266,11 @@ def main(cfg: DictConfig):
             logger.watch(model, log="gradients", log_freq=100)
             logger.log_hyperparams(OmegaConf.to_container(cfg))
 
-
         else:
             logger = SLURMLogger(
-                save_dir=os.path.join(cfg.checkpoint.dir, cfg.method, str(cfg.slurm.job_id)),
+                save_dir=os.path.join(
+                    cfg.checkpoint.dir, cfg.method, str(cfg.slurm.job_id)
+                ),
                 name=cfg.name,
                 project=cfg.wandb.project,
                 entity=cfg.wandb.entity,
@@ -266,18 +287,23 @@ def main(cfg: DictConfig):
     model_summary = RichModelSummary()
     callbacks.append(model_summary)
 
-
     trainer_kwargs = OmegaConf.to_container(cfg)
     # we only want to pass in valid Trainer args, the rest may be user specific
     valid_kwargs = inspect.signature(Trainer.__init__).parameters
-    trainer_kwargs = {name: trainer_kwargs[name] for name in valid_kwargs if name in trainer_kwargs}
+    trainer_kwargs = {
+        name: trainer_kwargs[name] for name in valid_kwargs if name in trainer_kwargs
+    }
     trainer_kwargs.update(
         {
             "logger": logger if cfg.wandb.enabled else None,
             "callbacks": callbacks,
             "enable_checkpointing": False,
-            "strategy": DDPStrategy(find_unused_parameters=False) if cfg.strategy == "ddp" else cfg.strategy,
-            "plugins": [SLURMEnvironment(requeue_signal=signal.SIGUSR1)] if cfg.slurm.enabled else None,
+            "strategy": DDPStrategy(find_unused_parameters=False)
+            if cfg.strategy == "ddp"
+            else cfg.strategy,
+            "plugins": [SLURMEnvironment(requeue_signal=signal.SIGUSR1)]
+            if cfg.slurm.enabled
+            else None,
         }
     )
     trainer = Trainer(**trainer_kwargs)
@@ -296,7 +322,7 @@ def main(cfg: DictConfig):
         trainer.fit_loop = WorkaroundFitLoop(
             trainer.fit_loop.min_epochs, trainer.fit_loop.max_epochs
         )
-    except:
+    except ImportError:
         pass
 
     # Train
@@ -304,12 +330,12 @@ def main(cfg: DictConfig):
 
     print("TRAINING FINISHED")
     # Workaround to log metrics to wandb at the end of a full run when using slurm autoresubmit
-    if isinstance(logger,SLURMLogger) and cfg.slurm.enabled and _idr_torch_available:
+    if isinstance(logger, SLURMLogger) and cfg.slurm.enabled and _idr_torch_available:
         if idr_torch.rank == 0:
             run = wandb.init(**logger._wandb_init)
 
-            print("initialized WanDB, run name : ",logger._name)
-            print("WANDB Run id : ",run.id)
+            print("initialized WanDB, run name : ", logger._name)
+            print("WANDB Run id : ", run.id)
             print("logging to WANDB...")
 
             wandb.config.update(logger.hyperparams, allow_val_change=True)
@@ -318,7 +344,9 @@ def main(cfg: DictConfig):
             with open(logger._save_dir + "/training_logs.txt", "r") as f:
                 for line in f:
                     # convert line to dict
-                    wandb.log(eval(line)) #allows to delete duplicates if any in terms of epoch
+                    wandb.log(
+                        eval(line)
+                    )  # allows to delete duplicates if any in terms of epoch
 
             wandb.finish()
 

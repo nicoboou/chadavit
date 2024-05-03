@@ -17,14 +17,12 @@
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import logging
 from functools import partial
 from typing import Any, Callable, Dict, List, Sequence, Tuple, Union
 
 import omegaconf
 import pytorch_lightning as pl
 import torch
-from functools import partial
 import torch.nn as nn
 import torch.nn.functional as F
 from src.backbones import (
@@ -171,14 +169,22 @@ class BaseMethod(pl.LightningModule):
         # load imagenet weights
         if cfg.weights_init == "imagenet-weights":
             pretrained = True
-            self.backbone: nn.Module = self.base_model(cfg.method, pretrained=pretrained, **kwargs)
-            self.backbone = modify_first_layer(backbone=self.backbone, cfg=cfg, pretrained=pretrained)
+            self.backbone: nn.Module = self.base_model(
+                cfg.method, pretrained=pretrained, **kwargs
+            )
+            self.backbone = modify_first_layer(
+                backbone=self.backbone, cfg=cfg, pretrained=pretrained
+            )
 
         # load random weights
         else:
             pretrained = False
-            self.backbone: nn.Module = self.base_model(cfg.method, pretrained=pretrained, **kwargs)
-            self.backbone = modify_first_layer(backbone=self.backbone, cfg=cfg, pretrained=pretrained)
+            self.backbone: nn.Module = self.base_model(
+                cfg.method, pretrained=pretrained, **kwargs
+            )
+            self.backbone = modify_first_layer(
+                backbone=self.backbone, cfg=cfg, pretrained=pretrained
+            )
 
         # modify features dim depending on backbone
         if hasattr(self.backbone, "inplanes"):
@@ -207,11 +213,21 @@ class BaseMethod(pl.LightningModule):
                     self.features_dim *= cfg.data.img_channels
             else:
                 if cfg.channels_strategy == "one_channel":
-                    self.features_dim = cfg.data.img_channels * self.backbone.patch_embed.num_patches * self.backbone.embed_dim
+                    self.features_dim = (
+                        cfg.data.img_channels
+                        * self.backbone.patch_embed.num_patches
+                        * self.backbone.embed_dim
+                    )
                 elif cfg.channels_strategy == "multi_channels":
-                    self.features_dim = cfg.data.img_channels * self.backbone.token_learner.num_patches * self.backbone.embed_dim
+                    self.features_dim = (
+                        cfg.data.img_channels
+                        * self.backbone.token_learner.num_patches
+                        * self.backbone.embed_dim
+                    )
                 else:
-                    self.features_dim = self.backbone.patch_embed.num_patches * self.backbone.embed_dim
+                    self.features_dim = (
+                        self.backbone.patch_embed.num_patches * self.backbone.embed_dim
+                    )
 
         # online linear classifier
         self.classifier: nn.Module = nn.Linear(self.features_dim, self.num_classes)
@@ -238,17 +254,20 @@ class BaseMethod(pl.LightningModule):
         self.warmup_epochs: int = cfg.scheduler.warmup_epochs
         self.scheduler_interval: str = cfg.scheduler.interval
         assert self.scheduler_interval in ["step", "epoch"]
-        if self.scheduler_interval == "step":
-            logging.warning(
-                f"Using scheduler_interval={self.scheduler_interval} might generate "
-                "issues when resuming a checkpoint."
-            )
 
         # if accumulating gradient then scale lr
         if self.accumulate_grad_batches:
             self.lr = self.lr * self.accumulate_grad_batches
-            self.classifier_lr = self.classifier_lr * self.accumulate_grad_batches if self.classifier_lr else None
-            self.token_learner_lr = self.token_learner_lr * self.accumulate_grad_batches if self.token_learner_lr else None
+            self.classifier_lr = (
+                self.classifier_lr * self.accumulate_grad_batches
+                if self.classifier_lr
+                else None
+            )
+            self.token_learner_lr = (
+                self.token_learner_lr * self.accumulate_grad_batches
+                if self.token_learner_lr
+                else None
+            )
             self.min_lr = self.min_lr * self.accumulate_grad_batches
             self.warmup_start_lr = self.warmup_start_lr * self.accumulate_grad_batches
 
@@ -263,7 +282,9 @@ class BaseMethod(pl.LightningModule):
         self.knn_eval: bool = cfg.knn_eval.enabled
         self.knn_k: int = cfg.knn_eval.k
         if self.knn_eval:
-            self.knn = WeightedKNNClassifier(k=self.knn_k, distance_fx=cfg.knn_eval.distance_func)
+            self.knn = WeightedKNNClassifier(
+                k=self.knn_k, distance_fx=cfg.knn_eval.distance_func
+            )
 
         # for performance
         self.no_channel_last = cfg.performance.disable_channel_last
@@ -302,20 +323,30 @@ class BaseMethod(pl.LightningModule):
         cfg.optimizer.kwargs = omegaconf_select(cfg, "optimizer.kwargs", {})
 
         # default for acc grad batches
-        cfg.accumulate_grad_batches = omegaconf_select(cfg, "accumulate_grad_batches", 1)
+        cfg.accumulate_grad_batches = omegaconf_select(
+            cfg, "accumulate_grad_batches", 1
+        )
 
         # default parameters for the scheduler
-        cfg.scheduler.lr_decay_steps = omegaconf_select(cfg, "scheduler.lr_decay_steps", None)
+        cfg.scheduler.lr_decay_steps = omegaconf_select(
+            cfg, "scheduler.lr_decay_steps", None
+        )
         cfg.scheduler.min_lr = omegaconf_select(cfg, "scheduler.min_lr", 0.0)
-        cfg.scheduler.warmup_start_lr = omegaconf_select(cfg, "scheduler.warmup_start_lr", 3e-5)
-        cfg.scheduler.warmup_epochs = omegaconf_select(cfg, "scheduler.warmup_epochs", 10)
+        cfg.scheduler.warmup_start_lr = omegaconf_select(
+            cfg, "scheduler.warmup_start_lr", 3e-5
+        )
+        cfg.scheduler.warmup_epochs = omegaconf_select(
+            cfg, "scheduler.warmup_epochs", 10
+        )
         cfg.scheduler.interval = omegaconf_select(cfg, "scheduler.interval", "step")
 
         # default parameters for knn eval
         cfg.knn_eval = omegaconf_select(cfg, "knn_eval", {})
         cfg.knn_eval.enabled = omegaconf_select(cfg, "knn_eval.enabled", False)
         cfg.knn_eval.k = omegaconf_select(cfg, "knn_eval.k", 20)
-        cfg.knn_eval.distance_func = omegaconf_select(cfg, "knn_eval.distance_func", "euclidean")
+        cfg.knn_eval.distance_func = omegaconf_select(
+            cfg, "knn_eval.distance_func", "euclidean"
+        )
 
         # default parameters for performance optimization
         cfg.performance = omegaconf_select(cfg, "performance", {})
@@ -331,7 +362,9 @@ class BaseMethod(pl.LightningModule):
 
         # Instanciate token learner using hydra if ViTMultiChannels is used
         if cfg.backbone.name == "vit_multichannels_tiny":
-            assert cfg.backbone.kwargs.token_learner_class is not None, "token_learner_class must be specified for ViTMultiChannels."
+            assert (
+                cfg.backbone.kwargs.token_learner_class is not None
+            ), "token_learner_class must be specified for ViTMultiChannels."
 
         return cfg
 
@@ -345,7 +378,9 @@ class BaseMethod(pl.LightningModule):
         """
 
         if self.token_learner_lr:
-            assert isinstance(self.backbone, ChAdaViT), "Only backbone of class ChAdaViT is currently supported for token_learner_lr."
+            assert isinstance(
+                self.backbone, ChAdaViT
+            ), "Only backbone of class ChAdaViT is currently supported for token_learner_lr."
             return [
                 {
                     "name": "token_learner",
@@ -353,18 +388,12 @@ class BaseMethod(pl.LightningModule):
                     "lr": self.token_learner_lr,
                     "weight_decay": 0,
                 },
-                {
-                    "name": "cls_token",
-                    "params": self.backbone.cls_token
-                },
+                {"name": "cls_token", "params": self.backbone.cls_token},
                 {
                     "name": "positional_embedding",
-                    "params": self.backbone.positional_embedding
+                    "params": self.backbone.positional_embedding,
                 },
-                {
-                    "name": "transformer",
-                    "params": self.backbone.blocks.parameters()
-                },
+                {"name": "transformer", "params": self.backbone.blocks.parameters()},
                 {
                     "name": "classifier",
                     "params": self.classifier.parameters(),
@@ -375,10 +404,7 @@ class BaseMethod(pl.LightningModule):
 
         else:
             return [
-                {
-                    "name": "backbone",
-                    "params": self.backbone.parameters()
-                },
+                {"name": "backbone", "params": self.backbone.parameters()},
                 {
                     "name": "classifier",
                     "params": self.classifier.parameters(),
@@ -401,7 +427,9 @@ class BaseMethod(pl.LightningModule):
             learnable_params = remove_bias_and_norm_from_weight_decay(learnable_params)
 
         # indexes of parameters without lr scheduler
-        idxs_no_scheduler = [i for i, m in enumerate(learnable_params) if m.pop("static_lr", False)]
+        idxs_no_scheduler = [
+            i for i, m in enumerate(learnable_params) if m.pop("static_lr", False)
+        ]
 
         assert self.optimizer in self._OPTIMIZERS
         optimizer = self._OPTIMIZERS[self.optimizer]
@@ -419,7 +447,8 @@ class BaseMethod(pl.LightningModule):
 
         if self.scheduler == "warmup_cosine":
             max_warmup_steps = (
-                self.warmup_epochs * (self.trainer.estimated_stepping_batches / self.max_epochs)
+                self.warmup_epochs
+                * (self.trainer.estimated_stepping_batches / self.max_epochs)
                 if self.scheduler_interval == "step"
                 else self.warmup_epochs
             )
@@ -433,7 +462,9 @@ class BaseMethod(pl.LightningModule):
                     optimizer,
                     warmup_epochs=max_warmup_steps,
                     max_epochs=max_scheduler_steps,
-                    warmup_start_lr=self.warmup_start_lr if self.warmup_epochs > 0 else self.lr,
+                    warmup_start_lr=self.warmup_start_lr
+                    if self.warmup_epochs > 0
+                    else self.lr,
                     eta_min=self.min_lr,
                 ),
                 "interval": self.scheduler_interval,
@@ -474,7 +505,7 @@ class BaseMethod(pl.LightningModule):
         except:
             optimizer.zero_grad()
 
-    def forward(self, X, index:int) -> Dict:
+    def forward(self, X, index: int) -> Dict:
         """
         Basic forward method. Children methods should call this function,
         modify the ouputs (without deleting anything) and return it.
@@ -486,17 +517,23 @@ class BaseMethod(pl.LightningModule):
         Returns:
             Dict: dict of logits and features.
         """
-    
+
         if not self.no_channel_last:
             X = X.to(memory_format=torch.channels_last)
 
         if self.channels_strategy == "multi_channels":
             # Assert that backbone is of class ChAdaViT
-            assert isinstance(self.backbone, ChAdaViT), "Only backbone of class ChAdaViT is currently supported for multi_channels strategy."
+            assert isinstance(
+                self.backbone, ChAdaViT
+            ), "Only backbone of class ChAdaViT is currently supported for multi_channels strategy."
             feats = self.backbone(X, index, self.list_num_channels)
         else:
-            feats = self.backbone.forward_features(X)[:,1:] if self.return_all_tokens else self.backbone(X)
-            
+            feats = (
+                self.backbone.forward_features(X)[:, 1:]
+                if self.return_all_tokens
+                else self.backbone(X)
+            )
+
         if not self.mixed_channels:
             if not self.return_all_tokens and self.channels_strategy == "one_channel":
                 # Concatenate feature embeddings per image
@@ -507,19 +544,26 @@ class BaseMethod(pl.LightningModule):
                 feats = feats.flatten(start_dim=1)
 
             elif self.return_all_tokens:
-                if (self.channels_strategy == "one_channel" or self.channels_strategy == "multi_channels"):
+                if (
+                    self.channels_strategy == "one_channel"
+                    or self.channels_strategy == "multi_channels"
+                ):
                     # Concatenate feature embeddings per image
-                    chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
+                    chunks = feats.view(
+                        sum(self.list_num_channels[index]), -1, feats.shape[-1]
+                    )
                     chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
                     # Concatenate the chunks along the batch dimension
                     feats = torch.stack(chunks, dim=0)
                 # Assuming tensor is of shape (batch_size, num_tokens, backbone_output_dim)
                 feats = feats.flatten(start_dim=1)
 
-        logits = self.classifier(feats.detach())  # feats = (batch_size, img_channels * backbone_output_dim)
+        logits = self.classifier(
+            feats.detach()
+        )  # feats = (batch_size, img_channels * backbone_output_dim)
         return {"logits": logits, "feats": feats}
 
-    def multicrop_forward(self, X: torch.tensor, index:int) -> Dict[str, Any]:
+    def multicrop_forward(self, X: torch.tensor, index: int) -> Dict[str, Any]:
         """Basic multicrop forward method that performs the forward pass
         for the multicrop views. Children classes can override this method to
         add new outputs but should still call this function. Make sure
@@ -538,11 +582,17 @@ class BaseMethod(pl.LightningModule):
 
         if self.channels_strategy == "multi_channels":
             # Assert that backbone is of class ChAdaViT
-            assert isinstance(self.backbone, ChAdaViT), "Only backbone of class ChAdaViT is currently supported for multi_channels strategy."
+            assert isinstance(
+                self.backbone, ChAdaViT
+            ), "Only backbone of class ChAdaViT is currently supported for multi_channels strategy."
             feats = self.backbone(X, index, self.list_num_channels)
         else:
-            feats = self.backbone.forward_features(X)[:,1:] if self.return_all_tokens else self.backbone(X)
-            
+            feats = (
+                self.backbone.forward_features(X)[:, 1:]
+                if self.return_all_tokens
+                else self.backbone(X)
+            )
+
         if not self.mixed_channels:
             if not self.return_all_tokens and self.channels_strategy == "one_channel":
                 # Concatenate feature embeddings per image
@@ -553,9 +603,14 @@ class BaseMethod(pl.LightningModule):
                 feats = feats.flatten(start_dim=1)
 
             elif self.return_all_tokens:
-                if (self.channels_strategy == "one_channel" or self.channels_strategy == "multi_channels"):
+                if (
+                    self.channels_strategy == "one_channel"
+                    or self.channels_strategy == "multi_channels"
+                ):
                     # Concatenate feature embeddings per image
-                    chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
+                    chunks = feats.view(
+                        sum(self.list_num_channels[index]), -1, feats.shape[-1]
+                    )
                     chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
                     # Concatenate the chunks along the batch dimension
                     feats = torch.stack(chunks, dim=0)
@@ -564,7 +619,9 @@ class BaseMethod(pl.LightningModule):
 
         return {"feats": feats}
 
-    def _base_shared_step(self, X: torch.Tensor, targets: torch.Tensor, index:int) -> Dict:
+    def _base_shared_step(
+        self, X: torch.Tensor, targets: torch.Tensor, index: int
+    ) -> Dict:
         """Forwards a batch of images X and computes the classification loss, the logits, the
         features, acc@1 and acc@5.
 
@@ -590,7 +647,9 @@ class BaseMethod(pl.LightningModule):
 
         return out
 
-    def base_training_step(self, X: torch.Tensor, targets: torch.Tensor, index:int) -> Dict:
+    def base_training_step(
+        self, X: torch.Tensor, targets: torch.Tensor, index: int
+    ) -> Dict:
         """Allows user to re-write how the forward step behaves for the training_step.
         Should always return a dict containing, at least, "loss", "acc1" and "acc5".
         Defaults to _base_shared_step
@@ -619,7 +678,10 @@ class BaseMethod(pl.LightningModule):
             Dict[str, Any]: dict with the classification loss, features and logits.
         """
 
-        if self.channels_strategy == "one_channel" or self.channels_strategy == "multi_channels":
+        if (
+            self.channels_strategy == "one_channel"
+            or self.channels_strategy == "multi_channels"
+        ):
             X, targets, list_num_channels = batch
             self.list_num_channels = list_num_channels
         else:
@@ -630,11 +692,17 @@ class BaseMethod(pl.LightningModule):
         # check that we received the desired number of crops
         assert len(X) == self.num_crops
 
-        outs = [self.base_training_step(x, targets, index) for index, x in enumerate(X[: self.num_large_crops])]
+        outs = [
+            self.base_training_step(x, targets, index)
+            for index, x in enumerate(X[: self.num_large_crops])
+        ]
         outs = {k: [out[k] for out in outs] for k in outs[0].keys()}
 
         if self.multicrop:
-            multicrop_outs = [self.multicrop_forward(x, index) for index, x in enumerate(X[self.num_large_crops :])]
+            multicrop_outs = [
+                self.multicrop_forward(x, index)
+                for index, x in enumerate(X[self.num_large_crops :])
+            ]
             for k in multicrop_outs[0].keys():
                 outs[k] = outs.get(k, []) + [out[k] for out in multicrop_outs]
 
@@ -656,13 +724,17 @@ class BaseMethod(pl.LightningModule):
             targets = targets.repeat(self.num_large_crops)
             mask = targets != -1
             self.knn(
-                train_features=torch.cat(outs["feats"][: self.num_large_crops])[mask].detach(),
+                train_features=torch.cat(outs["feats"][: self.num_large_crops])[
+                    mask
+                ].detach(),
                 train_targets=targets[mask],
             )
 
         return outs
 
-    def base_validation_step(self, X: torch.Tensor, targets: torch.Tensor, index:int) -> Dict:
+    def base_validation_step(
+        self, X: torch.Tensor, targets: torch.Tensor, index: int
+    ) -> Dict:
         """Allows user to re-write how the forward step behaves for the validation_step.
         Should always return a dict containing, at least, "loss", "acc1" and "acc5".
         Defaults to _base_shared_step
@@ -699,15 +771,22 @@ class BaseMethod(pl.LightningModule):
                 and accuracies.
         """
 
-        if self.channels_strategy == "one_channel" or self.channels_strategy == "multi_channels":
+        if (
+            self.channels_strategy == "one_channel"
+            or self.channels_strategy == "multi_channels"
+        ):
             X, targets, list_num_channels = batch
             self.list_num_channels = list_num_channels
-            batch_size = len(list_num_channels[0]) if self.compute_ssl_val_loss else targets.size(0)
+            batch_size = (
+                len(list_num_channels[0])
+                if self.compute_ssl_val_loss
+                else targets.size(0)
+            )
         else:
             if self.compute_ssl_val_loss:
                 _, X, targets = batch
                 batch_size = targets.size(0)
-            else: 
+            else:
                 X, targets = batch
                 batch_size = targets.size(0)
 
@@ -718,16 +797,25 @@ class BaseMethod(pl.LightningModule):
             # check that we received the desired number of crops
             assert len(X) == self.num_crops
 
-            outs = [self.base_validation_step(x, targets, index) for index, x in enumerate(X[: self.num_large_crops])]
+            outs = [
+                self.base_validation_step(x, targets, index)
+                for index, x in enumerate(X[: self.num_large_crops])
+            ]
             outs = {k: [out[k] for out in outs] for k in outs[0].keys()}
 
             if self.multicrop:
-                multicrop_outs = [self.multicrop_forward(x, index) for index, x in enumerate(X[self.num_large_crops :])]
+                multicrop_outs = [
+                    self.multicrop_forward(x, index)
+                    for index, x in enumerate(X[self.num_large_crops :])
+                ]
                 for k in multicrop_outs[0].keys():
                     outs[k] = outs.get(k, []) + [out[k] for out in multicrop_outs]
 
             if self.knn_eval and not self.trainer.sanity_checking:
-                self.knn(test_features=outs.pop("feats").detach(), test_targets=targets.detach())
+                self.knn(
+                    test_features=outs.pop("feats").detach(),
+                    test_targets=targets.detach(),
+                )
 
             if not self.mixed_channels:
                 # loss and stats
@@ -751,7 +839,10 @@ class BaseMethod(pl.LightningModule):
             # ------------------------- SSL Validation Loss DEACTIVATED ------------------------- #
             outs = self.base_validation_step(X, targets, index=0)
             if self.knn_eval and not self.trainer.sanity_checking:
-                self.knn(test_features=outs.pop("feats").detach(), test_targets=targets.detach())
+                self.knn(
+                    test_features=outs.pop("feats").detach(),
+                    test_targets=targets.detach(),
+                )
 
             if not self.mixed_channels:
                 # loss and stats
@@ -785,9 +876,15 @@ class BaseMethod(pl.LightningModule):
         """
 
         if not self.mixed_channels:
-            val_loss = weighted_mean(self.validation_step_outputs, "val_loss", "batch_size")
-            val_acc1 = weighted_mean(self.validation_step_outputs, "val_acc1", "batch_size")
-            val_acc5 = weighted_mean(self.validation_step_outputs, "val_acc5", "batch_size")
+            val_loss = weighted_mean(
+                self.validation_step_outputs, "val_loss", "batch_size"
+            )
+            val_acc1 = weighted_mean(
+                self.validation_step_outputs, "val_acc1", "batch_size"
+            )
+            val_acc5 = weighted_mean(
+                self.validation_step_outputs, "val_acc5", "batch_size"
+            )
 
             log = {"val_loss": val_loss, "val_acc1": val_acc1, "val_acc5": val_acc5}
 
@@ -813,7 +910,10 @@ class BaseMethod(pl.LightningModule):
             targets (torch.Tensor): the targets.
         """
 
-        if self.channels_strategy == "one_channel" or self.channels_strategy == "multi_channels":
+        if (
+            self.channels_strategy == "one_channel"
+            or self.channels_strategy == "multi_channels"
+        ):
             X, targets, list_num_channels = batch
             self.list_num_channels = list_num_channels
         else:
@@ -822,12 +922,12 @@ class BaseMethod(pl.LightningModule):
         # Manually move to cuda
         X = X.cuda(non_blocking=True)
 
-        outs = self._base_extract_step(X, index=0) # we only have one crop so index=0
+        outs = self._base_extract_step(X, index=0)  # we only have one crop so index=0
 
         return outs, targets
 
     @torch.no_grad()
-    def _base_extract_step(self, X: torch.Tensor, index:int) -> Dict:
+    def _base_extract_step(self, X: torch.Tensor, index: int) -> Dict:
         """Forwards a batch of images X and extracts the features from the backbone.
 
         Args:
@@ -843,11 +943,17 @@ class BaseMethod(pl.LightningModule):
 
         if self.channels_strategy == "multi_channels":
             # Assert that backbone is of class ChAdaViT
-            assert isinstance(self.backbone, ChAdaViT), "Only backbone of class ChAdaViT is currently supported for multi_channels strategy."
+            assert isinstance(
+                self.backbone, ChAdaViT
+            ), "Only backbone of class ChAdaViT is currently supported for multi_channels strategy."
             feats = self.backbone(X, index, self.list_num_channels)
         else:
-            feats = self.backbone.forward_features(X)[:,1:] if self.return_all_tokens else self.backbone(X)
-            
+            feats = (
+                self.backbone.forward_features(X)[:, 1:]
+                if self.return_all_tokens
+                else self.backbone(X)
+            )
+
         if not self.mixed_channels:
             if not self.return_all_tokens and self.channels_strategy == "one_channel":
                 # Concatenate feature embeddings per image
@@ -858,9 +964,14 @@ class BaseMethod(pl.LightningModule):
                 feats = feats.flatten(start_dim=1)
 
             elif self.return_all_tokens:
-                if (self.channels_strategy == "one_channel" or self.channels_strategy == "multi_channels"):
+                if (
+                    self.channels_strategy == "one_channel"
+                    or self.channels_strategy == "multi_channels"
+                ):
                     # Concatenate feature embeddings per image
-                    chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
+                    chunks = feats.view(
+                        sum(self.list_num_channels[index]), -1, feats.shape[-1]
+                    )
                     chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
                     # Concatenate the chunks along the batch dimension
                     feats = torch.stack(chunks, dim=0)
@@ -868,7 +979,6 @@ class BaseMethod(pl.LightningModule):
                 feats = feats.flatten(start_dim=1)
 
         return feats
-
 
 
 class BaseMomentumMethod(BaseMethod):
@@ -902,24 +1012,36 @@ class BaseMomentumMethod(BaseMethod):
         # load imagenet weights
         if cfg.weights_init == "imagenet-weights":
             pretrained = True
-            self.momentum_backbone: nn.Module = self.base_model(cfg.method, pretrained=pretrained, **kwargs)
-            self.momentum_backbone = modify_first_layer(backbone=self.momentum_backbone, cfg=cfg, pretrained=pretrained)
+            self.momentum_backbone: nn.Module = self.base_model(
+                cfg.method, pretrained=pretrained, **kwargs
+            )
+            self.momentum_backbone = modify_first_layer(
+                backbone=self.momentum_backbone, cfg=cfg, pretrained=pretrained
+            )
 
         else:
             pretrained = False
-            self.momentum_backbone: nn.Module = self.base_model(cfg.method, pretrained=pretrained, **kwargs)
-            self.momentum_backbone = modify_first_layer(backbone=self.momentum_backbone, cfg=cfg, pretrained=pretrained)
+            self.momentum_backbone: nn.Module = self.base_model(
+                cfg.method, pretrained=pretrained, **kwargs
+            )
+            self.momentum_backbone = modify_first_layer(
+                backbone=self.momentum_backbone, cfg=cfg, pretrained=pretrained
+            )
 
         initialize_momentum_params(self.backbone, self.momentum_backbone)
 
         # momentum classifier
         if cfg.momentum.classifier:
-            self.momentum_classifier: Any = nn.Linear(self.features_dim, self.num_classes)
+            self.momentum_classifier: Any = nn.Linear(
+                self.features_dim, self.num_classes
+            )
         else:
             self.momentum_classifier = None
 
         # momentum updater
-        self.momentum_updater = MomentumUpdater(cfg.momentum.base_tau, cfg.momentum.final_tau)
+        self.momentum_updater = MomentumUpdater(
+            cfg.momentum.base_tau, cfg.momentum.final_tau
+        )
 
     @property
     def learnable_params(self) -> List[Dict[str, Any]]:
@@ -963,7 +1085,9 @@ class BaseMomentumMethod(BaseMethod):
             omegaconf.DictConfig: same as the argument, used to avoid errors.
         """
 
-        cfg = super(BaseMomentumMethod, BaseMomentumMethod).add_and_assert_specific_cfg(cfg)
+        cfg = super(BaseMomentumMethod, BaseMomentumMethod).add_and_assert_specific_cfg(
+            cfg
+        )
 
         cfg.momentum.base_tau = omegaconf_select(cfg, "momentum.base_tau", 0.99)
         cfg.momentum.final_tau = omegaconf_select(cfg, "momentum.final_tau", 1.0)
@@ -976,7 +1100,7 @@ class BaseMomentumMethod(BaseMethod):
         self.last_step = 0
 
     @torch.no_grad()
-    def momentum_forward(self, X: torch.Tensor, index:int) -> Dict[str, Any]:
+    def momentum_forward(self, X: torch.Tensor, index: int) -> Dict[str, Any]:
         """Momentum forward method. Children methods should call this function,
         modify the ouputs (without deleting anything) and return it.
 
@@ -993,11 +1117,17 @@ class BaseMomentumMethod(BaseMethod):
 
         if self.channels_strategy == "multi_channels":
             # Assert that backbone is of class ChAdaViT
-            assert isinstance(self.momentum_backbone, ChAdaViT), "Only backbone of class ChAdaViT is currently supported for multi_channels strategy."
+            assert isinstance(
+                self.momentum_backbone, ChAdaViT
+            ), "Only backbone of class ChAdaViT is currently supported for multi_channels strategy."
             feats = self.momentum_backbone(X, index, self.list_num_channels)
         else:
-            feats = self.momentum_backbone.forward_features(X)[:,1:] if self.return_all_tokens else self.momentum_backbone(X)
-            
+            feats = (
+                self.momentum_backbone.forward_features(X)[:, 1:]
+                if self.return_all_tokens
+                else self.momentum_backbone(X)
+            )
+
         if not self.mixed_channels:
             if not self.return_all_tokens and self.channels_strategy == "one_channel":
                 # Concatenate feature embeddings per image
@@ -1008,9 +1138,14 @@ class BaseMomentumMethod(BaseMethod):
                 feats = feats.flatten(start_dim=1)
 
             elif self.return_all_tokens:
-                if (self.channels_strategy == "one_channel" or self.channels_strategy == "multi_channels"):
+                if (
+                    self.channels_strategy == "one_channel"
+                    or self.channels_strategy == "multi_channels"
+                ):
                     # Concatenate feature embeddings per image
-                    chunks = feats.view(sum(self.list_num_channels[index]), -1, feats.shape[-1])
+                    chunks = feats.view(
+                        sum(self.list_num_channels[index]), -1, feats.shape[-1]
+                    )
                     chunks = torch.split(chunks, self.list_num_channels[index], dim=0)
                     # Concatenate the chunks along the batch dimension
                     feats = torch.stack(chunks, dim=0)
@@ -1019,7 +1154,9 @@ class BaseMomentumMethod(BaseMethod):
 
         return {"feats": feats}
 
-    def _shared_step_momentum(self, X: torch.Tensor, targets: torch.Tensor, index:int) -> Dict[str, Any]:
+    def _shared_step_momentum(
+        self, X: torch.Tensor, targets: torch.Tensor, index: int
+    ) -> Dict[str, Any]:
         """Forwards a batch of images X in the momentum backbone and optionally computes the
         classification loss, the logits, the features, acc@1 and acc@5 for of momentum classifier.
 
@@ -1062,7 +1199,10 @@ class BaseMomentumMethod(BaseMethod):
 
         outs = super().training_step(batch, batch_idx)
 
-        if self.channels_strategy == "one_channel" or self.channels_strategy == "multi_channels":
+        if (
+            self.channels_strategy == "one_channel"
+            or self.channels_strategy == "multi_channels"
+        ):
             X, targets, list_num_channels = batch
             self.list_num_channels = list_num_channels
         else:
@@ -1073,9 +1213,12 @@ class BaseMomentumMethod(BaseMethod):
         # remove small crops
         X = X[: self.num_large_crops]
 
-        momentum_outs = [self._shared_step_momentum(x, targets, index) for index, x in enumerate(X)]
+        momentum_outs = [
+            self._shared_step_momentum(x, targets, index) for index, x in enumerate(X)
+        ]
         momentum_outs = {
-            "momentum_" + k: [out[k] for out in momentum_outs] for k in momentum_outs[0].keys()
+            "momentum_" + k: [out[k] for out in momentum_outs]
+            for k in momentum_outs[0].keys()
         }
 
         if self.momentum_classifier is not None:
@@ -1104,7 +1247,9 @@ class BaseMomentumMethod(BaseMethod):
         outs.update(momentum_outs)
         return outs
 
-    def on_train_batch_end(self, outputs: Dict[str, Any], batch: Sequence[Any], batch_idx: int):
+    def on_train_batch_end(
+        self, outputs: Dict[str, Any], batch: Sequence[Any], batch_idx: int
+    ):
         """Performs the momentum update of momentum pairs using exponential moving average at the
         end of the current training step if an optimizer step was performed.
 
@@ -1153,9 +1298,14 @@ class BaseMomentumMethod(BaseMethod):
                 momentum classifiers.
         """
 
-        outs = super().validation_step(batch, batch_idx, update_validation_step_outputs=False)
+        outs = super().validation_step(
+            batch, batch_idx, update_validation_step_outputs=False
+        )
 
-        if self.channels_strategy == "one_channel" or self.channels_strategy == "multi_channels":
+        if (
+            self.channels_strategy == "one_channel"
+            or self.channels_strategy == "multi_channels"
+        ):
             X, targets, list_num_channels = batch
             self.list_num_channels = list_num_channels
         else:
@@ -1166,15 +1316,18 @@ class BaseMomentumMethod(BaseMethod):
 
         # ------------------------- SSL Validation Loss ACTIVATED ------------------------- #
         if self.compute_ssl_val_loss:
-
             X = [X] if isinstance(X, torch.Tensor) else X
 
             # remove small crops
             X = X[: self.num_large_crops]
 
-            momentum_outs = [self._shared_step_momentum(x, targets, index) for index, x in enumerate(X)]
+            momentum_outs = [
+                self._shared_step_momentum(x, targets, index)
+                for index, x in enumerate(X)
+            ]
             momentum_outs = {
-                "momentum_" + k: [out[k] for out in momentum_outs] for k in momentum_outs[0].keys()
+                "momentum_" + k: [out[k] for out in momentum_outs]
+                for k in momentum_outs[0].keys()
             }
 
             if self.momentum_classifier is not None:
@@ -1189,11 +1342,13 @@ class BaseMomentumMethod(BaseMethod):
                     sum(momentum_outs["momentum_acc5"]) / self.num_large_crops
                 )
 
-                outs.update({
-                    "train_momentum_class_loss": momentum_outs["momentum_loss"],
-                    "train_momentum_acc1": momentum_outs["momentum_acc1"],
-                    "train_momentum_acc5": momentum_outs["momentum_acc5"],
-                })
+                outs.update(
+                    {
+                        "train_momentum_class_loss": momentum_outs["momentum_loss"],
+                        "train_momentum_acc1": momentum_outs["momentum_acc1"],
+                        "train_momentum_acc5": momentum_outs["momentum_acc5"],
+                    }
+                )
 
         # ------------------------- SSL Validation Loss DEACTIVATED ------------------------- #
         else:
@@ -1204,11 +1359,13 @@ class BaseMomentumMethod(BaseMethod):
                 momentum_outs["momentum_acc1"] = momentum_outs["acc1"]
                 momentum_outs["momentum_acc5"] = momentum_outs["acc5"]
 
-                outs.update({
-                    "train_momentum_class_loss": momentum_outs["momentum_loss"],
-                    "train_momentum_acc1": momentum_outs["momentum_acc1"],
-                    "train_momentum_acc5": momentum_outs["momentum_acc5"],
-                })
+                outs.update(
+                    {
+                        "train_momentum_class_loss": momentum_outs["momentum_loss"],
+                        "train_momentum_acc1": momentum_outs["momentum_acc1"],
+                        "train_momentum_acc5": momentum_outs["momentum_acc5"],
+                    }
+                )
 
         if update_validation_step_outputs and not self.compute_ssl_val_loss:
             self.validation_step_outputs.append(outs)
@@ -1234,11 +1391,19 @@ class BaseMomentumMethod(BaseMethod):
 
         if not self.mixed_channels:
             # base method metrics
-            val_loss = weighted_mean(self.validation_step_outputs, "val_loss", "batch_size")
-            val_acc1 = weighted_mean(self.validation_step_outputs, "val_acc1", "batch_size")
-            val_acc5 = weighted_mean(self.validation_step_outputs, "val_acc5", "batch_size")
+            val_loss = weighted_mean(
+                self.validation_step_outputs, "val_loss", "batch_size"
+            )
+            val_acc1 = weighted_mean(
+                self.validation_step_outputs, "val_acc1", "batch_size"
+            )
+            val_acc5 = weighted_mean(
+                self.validation_step_outputs, "val_acc5", "batch_size"
+            )
 
-            log.update({"val_loss": val_loss, "val_acc1": val_acc1, "val_acc5": val_acc5})
+            log.update(
+                {"val_loss": val_loss, "val_acc1": val_acc1, "val_acc5": val_acc5}
+            )
 
             if self.knn_eval and not self.trainer.sanity_checking:
                 val_knn_acc1, val_knn_acc5 = self.knn.compute()
@@ -1256,7 +1421,13 @@ class BaseMomentumMethod(BaseMethod):
                     self.validation_step_outputs, "momentum_val_acc5", "batch_size"
                 )
 
-                log.update({"momentum_val_loss": val_loss,"momentum_val_acc1": val_acc1,"momentum_val_acc5": val_acc5})
+                log.update(
+                    {
+                        "momentum_val_loss": val_loss,
+                        "momentum_val_acc1": val_acc1,
+                        "momentum_val_acc5": val_acc5,
+                    }
+                )
 
         # check if something to log
         if len(log) > 0:
