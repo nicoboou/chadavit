@@ -34,6 +34,11 @@ Official PyTorch implementation and pretrained models of ChAda-ViT. For details,
       <td align="left">Dataset repo</td>
       <td><a href="https://huggingface.co/datasets/nicoboou/IDRCell100k">link</a></td>
     </tr>
+    <tr>
+      <td>Google Drive</td>
+      <td align="left">Weigths (.ckpt)</td>
+      <td><a href="https://drive.google.com/file/d/1SUfUwerHJlf0vo9mdgM0mRn9TNZkaqXl/view?usp=sharing">link</a></td>
+    </tr>
   </tbody>
 </table>
 
