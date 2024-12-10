@@ -121,11 +121,12 @@ For the pretrained weights, stay tuned !
 If you find this repository useful for your research, please cite the following paper as such:
 
 ```
-@article{bourriez2023chada,
+@inproceedings{bourriez2024chada,
   title={ChAda-ViT: Channel Adaptive Attention for Joint Representation Learning of Heterogeneous Microscopy Images},
   author={Bourriez, Nicolas and Bendidi, Ihab and Cohen, Ethan and Watkinson, Gabriel and Sanchez, Maxime and Bollot, Guillaume and Genovesio, Auguste},
-  journal={arXiv preprint arXiv:2311.15264},
-  year={2023}
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  pages={11556--11565},
+  year={2024}
 }
 ```
 
