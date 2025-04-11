@@ -1,0 +1,71 @@
+defaults:
+  - _self_
+  - wandb: private.yaml
+  - override hydra/hydra_logging: disabled
+  - override hydra/job_logging: disabled
+
+# disable hydra outputs
+hydra:
+  output_subdir: null
+  run:
+    dir: .
+
+name: "Dino-Transloc-vit_c-embed_dim_192-patch_size_16-LINEAR_EVAL"
+pretrained_feature_extractor: "/path/to/weights" #"random-weights" or "imagenet-weights"
+pretrain_method: "dino"
+
+backbone:
+  name: "vit_channels"
+  kwargs:
+    embed_dim: 192
+    patch_size: 16
+    return_all_tokens: False
+    max_number_channels: 10    # maximum number of channels that was used during pretraining
+
+method_kwargs:
+  proj_hidden_dim: 2048
+  proj_output_dim: 256
+  num_prototypes: 65536
+  norm_last_layer: False
+
+momentum:
+  base_tau: 0.9995
+  final_tau: 1.0
+
+data:
+  dataset: transloc
+  train_path: "/path/to/train/data"
+  val_path: "/path/to/val/data"
+  format: "image_folder"
+  num_workers: 4
+  img_channels: 3
+  max_img_channels: 3
+
+optimizer:
+  name: "adamw"
+  batch_size: 64
+  lr: 0.0005
+  classifier_lr: 3e-3
+  weight_decay: 1e-4
+
+scheduler:
+  name: "warmup_cosine"
+  warmup_start_lr: 0.00001
+
+checkpoint:
+  enabled: True
+  dir: "trained_models"
+  frequency: 1
+
+auto_resume:
+  enabled: True
+
+channels_strategy: "multi_channels"
+
+# overwrite PL stuff
+max_epochs: 150
+devices: [0]
+sync_batchnorm: True
+accelerator: "gpu"
+strategy: "ddp_find_unused_parameters_true"
+#precision: 16-mixed
