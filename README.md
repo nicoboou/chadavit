@@ -48,7 +48,7 @@ _**"How could we process images of different modalities, with different number o
 
 **ChAda-ViT (Channel Adaptive Vision Transformer)** is meant to address a tricky challenge encountered in biological imaging: images span a variety of modalities, each with a different number, order, and type of channels, often bearing little correlation to each other. This complexity has long been a hurdle in the field.
 
-**Our Solution:** ChAda-ViT utilizes an Inter-Channel & Inter-Channel Attention mechanism, tailored to handle images regardless of their channel diversity. This allows for the effective analysis of images from 1 to 10 channels per experiment, spanning 7 different microscope modalities.
+**Our Solution:** ChAda-ViT utilizes an Inter-Channel & Inter-Channel Attention mechanism, tailored to handle images regardless of their channel diversity. This allows for the effective analysis of multi channels images, spanning 7 different microscope modalities.
 
 **IDRCell100k Dataset:** Alongside ChAda-ViT, we introduce IDRCell100k, a comprehensive bioimage dataset encompassing 79 experiments coming from 7 different imaging methods. This rich resource is designed to fully leverage the capabilities of ChAda-ViT, offering an unprecedented diversity in microscopy and channel types.
 
@@ -60,7 +60,7 @@ _**"How could we process images of different modalities, with different number o
 
 ## 🗾 Dataset
 
-The IDRCell100k dataset is a comprehensive collection of biological images, meticulously curated to represent a broad spectrum of microscopy techniques and channel configurations. It comprises 79 different experiments, utilizing 7 types of microscopy techniques, with images featuring channel counts ranging from 1 to 10. Each experiment contributes 1300 images, culminating in a total of 104,093 multiplexed images, each resized to 224x224 pixels. This dataset, unique in its diversity and scale, provides an invaluable resource for the development and validation of advanced image analysis models like ChAda-ViT, enhancing their capability to adapt to various imaging conditions and channel complexities in biological research.
+The IDRCell100k dataset is a comprehensive collection of biological images, meticulously curated to represent a broad spectrum of microscopy techniques and channel configurations. It comprises 79 different experiments, utilizing 7 types of microscopy techniques, with images featuring multi channels counts. Each experiment contributes 1300 images, culminating in a total of 104,093 multiplexed images, each resized to 224x224 pixels. This dataset, unique in its diversity and scale, provides an invaluable resource for the development and validation of advanced image analysis models like ChAda-ViT, enhancing their capability to adapt to various imaging conditions and channel complexities in biological research.
 
 Dataset available soon...
 
